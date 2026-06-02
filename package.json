@@ -1,0 +1,31 @@
+{
+  "name": "tazkia-ai-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "ingest": "ts-node --project tsconfig.scripts.json scripts/ingest.ts",
+    "ingest:quran": "ts-node --project tsconfig.scripts.json scripts/ingest.ts --quran",
+    "ingest:hadith": "ts-node --project tsconfig.scripts.json scripts/ingest.ts --hadith"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "langchain": "^0.3.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "dotenv": "^16.4.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.5.0"
+  }
+}

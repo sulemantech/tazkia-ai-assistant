@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"d:\\\\Projects\\\\tazkia-ai-assistant\\\\next.config.ts\")"
+    ]
+  }
+}

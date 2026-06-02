@@ -1,0 +1,57 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/api/ask/route.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "app/api/search/route.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "app/api/sources/route.ts": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "app/api/health/route.ts": {
+      "maxDuration": 5,
+      "memory": 128
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    },
+    {
+      "source": "/api/sources",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/api/health",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL":   "@supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY":  "@supabase_service_role_key",
+    "OPENAI_API_KEY":             "@openai_api_key",
+    "OPENAI_MODEL":               "gpt-4o-mini",
+    "RATE_LIMIT_RPM":             "20"
+  }
+}
