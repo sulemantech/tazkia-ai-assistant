@@ -759,14 +759,13 @@ export default function Home() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 12 }}>
             {[
-              { value: M.total,   label: 'Documents',        sub: 'total indexed',         accent: T.cyan },
-              { value: M.hadith,  label: 'Hadiths',           sub: '7 major collections',   accent: '#3b82f6' },
-              { value: M.quran,   label: 'Quranic Verses',    sub: '6,236 ayat · 114 Surahs', accent: T.green },
-              { value: M.tafsir,  label: 'Tafsir Entries',    sub: 'Ibn Kathir · every ayah', accent: T.purple },
-              { value: '~5M',     label: 'Tokens',            sub: 'knowledge corpus',       accent: T.amber },
-              { value: '1,024',   label: 'Dimensions',        sub: 'Jina AI embedding',      accent: T.cyan },
-              { value: '<500ms',  label: 'Latency',           sub: 'hybrid search',          accent: T.green },
-              { value: '100%',    label: 'Cited',             sub: 'zero hallucination',     accent: T.green },
+              { value: '44,193+', label: 'Documents',     sub: 'total indexed',       accent: T.cyan },
+              { value: '31,757',  label: 'Hadiths',        sub: '7 major collections', accent: '#3b82f6' },
+              { value: '6,236',   label: 'Quranic Verses', sub: '114 Surahs · complete', accent: T.green },
+              { value: '~5M',     label: 'Tokens',         sub: 'knowledge corpus',    accent: T.amber },
+              { value: '1,024',   label: 'Dimensions',     sub: 'Jina AI embedding',   accent: T.cyan },
+              { value: '<500ms',  label: 'Latency',        sub: 'hybrid search',       accent: T.green },
+              { value: '100%',    label: 'Cited',          sub: 'zero hallucination',  accent: T.green },
             ].map(m => (
               <div key={m.label} style={{
                 textAlign: 'center',
