@@ -26,6 +26,8 @@ class JinaEmbeddings extends Embeddings {
   }
 
   private async callJina(texts: string[], attempt = 1): Promise<number[][]> {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 25_000);
     const res = await fetch(JINA_URL, {
       method: 'POST',
       headers: {
@@ -36,7 +38,8 @@ class JinaEmbeddings extends Embeddings {
         model: 'jina-embeddings-v3',
         input: texts,
       }),
-    });
+      signal: abort.signal,
+    }).finally(() => clearTimeout(timer));
 
     const data = await res.json() as {
       data?: Array<{ embedding: number[] }>;

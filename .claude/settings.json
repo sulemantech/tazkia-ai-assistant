@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(del \"d:\\\\Projects\\\\tazkia-ai-assistant\\\\next.config.ts\")"
+      "Bash(del \"d:\\\\Projects\\\\tazkia-ai-assistant\\\\next.config.ts\")",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Get-Process -Id 14884 -ErrorAction SilentlyContinue)",
+      "Bash(curl -s http://localhost:3001/)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/\" -TimeoutSec 15 -UseBasicParsing)",
+      "PowerShell($log = \"$env:TEMP\\\\nextjs_test.log\"; Start-Sleep -Seconds 5; Invoke-WebRequest -Uri \"http://localhost:3002/\" -TimeoutSec 20 -UseBasicParsing | Select-Object StatusCode; Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 20)",
+      "PowerShell($tcp = New-Object System.Net.Sockets.TcpClient; try { $tcp.Connect\\(\"127.0.0.1\", 3001\\); Write-Output \"TCP CONNECTED to 3001\" } catch { Write-Output \"TCP FAILED: $_\" } finally { $tcp.Close\\(\\) })",
+      "PowerShell($env:PGPASSWORD = \"MetaFront@2026!\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" \"postgresql://postgres@db.kafkqcfslxrodlkcxyjn.supabase.co:5432/postgres\" -c \"SET maintenance_work_mem = '256 MB'; SET statement_timeout = 0; CREATE INDEX IF NOT EXISTS documents_embedding_ivfflat_idx ON documents USING ivfflat \\(embedding vector_cosine_ops\\) WITH \\(lists = 100\\);\" 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/api/health\" -TimeoutSec 20 -UseBasicParsing 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/api/search\" -Method POST -Body '{\"query\":\"Patience\",\"page_size\":4}' -ContentType \"application/json\" -TimeoutSec 20 -UseBasicParsing 2>&1 | Select-Object StatusCode, @{N='Content';E={$_.Content.Substring\\(0, [Math]::Min\\(500, $_.Content.Length\\)\\)}})",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/health\" -TimeoutSec 30 -UseBasicParsing)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/health\" -TimeoutSec 40 -UseBasicParsing)"
     ]
   }
 }

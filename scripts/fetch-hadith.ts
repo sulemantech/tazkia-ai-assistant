@@ -79,7 +79,10 @@ export async function fetchHadithDocuments(
 
       for (const h of hadiths) {
         const text = h.text?.trim();
-        if (!text || text.length < 40) continue; // skip very short fragments
+        if (!text || text.length < 40) continue;
+        // Skip chain-of-transmitters footnotes — no substantive content
+        if (/this hadith has been narrated.{0,80}(chain of transmitters|another chain)/i.test(text)) continue;
+        if (/^(a hadith like this|the same hadith) has been narrated/i.test(text)) continue;
 
         all.push({
           content: text,

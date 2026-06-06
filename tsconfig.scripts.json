@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "noEmit": false,
     "esModuleInterop": true,
+    "types": ["node"],
     "paths": { "@/*": ["./*"] }
   },
   "include": ["scripts/**/*.ts", "lib/**/*.ts"]

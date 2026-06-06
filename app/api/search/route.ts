@@ -4,8 +4,8 @@ import { hybridSearch } from '@/lib/vectorstore';
 import { detectSourceTypes } from '@/lib/detect-source';
 import type { SearchRequest } from '@/lib/types';
 
-export const runtime = 'edge';
-export const maxDuration = 10;
+export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   let body: SearchRequest;

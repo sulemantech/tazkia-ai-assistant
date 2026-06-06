@@ -168,14 +168,16 @@ async function ingest(documents: ParsedDocument[]): Promise<void> {
 
     const rows: Row[] = batch.map((c, i) => ({ ...c, embedding: vectors[i] }));
 
-    // Upsert on content_hash — idempotent, safe to re-run any collection
+    // Upsert on content_hash when constraint exists, otherwise plain insert
     for (let d = 0; d < rows.length; d += DB_BATCH) {
       const dbSlice = rows.slice(d, d + DB_BATCH);
       const { error } = await supabase
         .from('documents')
         .upsert(dbSlice, { onConflict: 'content_hash', ignoreDuplicates: true });
       if (error) {
-        console.error(`\n  DB upsert error: ${error.message}`);
+        const { error: insertErr } = await supabase.from('documents').insert(dbSlice);
+        if (insertErr) console.error(`\n  DB insert error: ${insertErr.message}`);
+        else inserted += dbSlice.length;
       } else {
         inserted += dbSlice.length;
       }

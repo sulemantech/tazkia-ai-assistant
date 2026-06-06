@@ -20,13 +20,19 @@ interface TafsirEntry {
   text: string;       // HTML content
 }
 
+interface TafsirMeta {
+  tafsir_name?: string;
+  author_name?: string;
+  chapter_id?: number;
+  current_page?: number;
+  next_page?: number | null;
+  total_pages?: number;
+  total_count?: number;
+}
+
 interface TafsirResponse {
   tafsirs: TafsirEntry[];
-  meta?: {
-    tafsir_name?: string;
-    author_name?: string;
-    chapter_id?: number;
-  };
+  meta?: TafsirMeta;
 }
 
 function stripHtml(html: string): string {
@@ -42,11 +48,12 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function fetchTafsirForSurah(
+async function fetchPage(
   surahNumber: number,
+  page: number,
   attempt = 1
-): Promise<TafsirEntry[]> {
-  const url = `${BASE}/tafsirs/${TAFSIR_ID}/by_chapter/${surahNumber}`;
+): Promise<TafsirResponse> {
+  const url = `${BASE}/tafsirs/${TAFSIR_ID}/by_chapter/${surahNumber}?page=${page}&per_page=50`;
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -55,13 +62,29 @@ async function fetchTafsirForSurah(
     const wait = attempt * 15_000;
     process.stdout.write(`\n  [rate limited — retrying in ${wait / 1000}s] `);
     await new Promise((r) => setTimeout(r, wait));
-    return fetchTafsirForSurah(surahNumber, attempt + 1);
+    return fetchPage(surahNumber, page, attempt + 1);
   }
 
-  if (!res.ok) throw new Error(`HTTP ${res.status} for surah ${surahNumber}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for surah ${surahNumber} p${page}`);
+  return (await res.json()) as TafsirResponse;
+}
 
-  const data = (await res.json()) as TafsirResponse;
-  return data.tafsirs ?? [];
+async function fetchTafsirForSurah(surahNumber: number): Promise<TafsirEntry[]> {
+  const all: TafsirEntry[] = [];
+  let page = 1;
+
+  while (true) {
+    const data = await fetchPage(surahNumber, page);
+    all.push(...(data.tafsirs ?? []));
+
+    const nextPage = data.meta?.next_page;
+    if (!nextPage) break;
+    page = nextPage;
+    // Polite pause between pages of the same surah
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  return all;
 }
 
 export async function fetchTafsirDocuments(): Promise<ParsedDocument[]> {

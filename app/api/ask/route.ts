@@ -4,10 +4,8 @@ import { detectFatwas, groundingScore, computeConfidence, SCHOLAR_REFERRAL } fro
 import { supabaseAdmin } from '@/lib/supabase';
 import type { AskRequest, SSEEvent } from '@/lib/types';
 
-// Edge Runtime: lower cold-start latency, streaming support, no Node.js APIs
-export const runtime = 'edge';
-// Vercel free-tier hard limit is 10s; leave 500ms for overhead
-export const maxDuration = 10;
+export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 // ── SSE helpers ──────────────────────────────────────────────────────────────
 
