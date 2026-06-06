@@ -6,10 +6,11 @@ export async function GET() {
   const t0 = Date.now();
 
   try {
-    // Lightweight ping: count documents without fetching rows
+    // head:true doesn't work reliably in Edge Runtime — use limit(0) instead
     const { count, error } = await supabaseAdmin
       .from('documents')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact' })
+      .limit(0);
 
     if (error) throw error;
 

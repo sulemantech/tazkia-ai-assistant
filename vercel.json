@@ -50,8 +50,9 @@
     "NEXT_PUBLIC_SUPABASE_URL":   "@supabase_url",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
     "SUPABASE_SERVICE_ROLE_KEY":  "@supabase_service_role_key",
-    "OPENAI_API_KEY":             "@openai_api_key",
-    "OPENAI_MODEL":               "gpt-4o-mini",
+    "GOOGLE_API_KEY":             "@google_api_key",
+    "JINA_API_KEY":               "@jina_api_key",
+    "GOOGLE_MODEL":               "gemini-3.5-flash",
     "RATE_LIMIT_RPM":             "20"
   }
 }

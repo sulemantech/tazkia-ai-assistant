@@ -1,6 +1,7 @@
 /**
- * Fetches all Quranic verses (English translation) from QuranCDN's free API.
- * Translation ID 131 = Sahih International (most widely accepted English translation).
+ * Fetches all Quranic verses using the Al-Quran Cloud API (alquran.cloud).
+ * Free, no auth required, stable structure.
+ * Translation: en.sahih (Sahih International)
  */
 
 export interface ParsedDocument {
@@ -10,66 +11,50 @@ export interface ParsedDocument {
   language: 'en' | 'ar';
 }
 
-const BASE = 'https://api.qurancdn.com/api/qdc';
-const TRANSLATION_ID = 131; // Sahih International
+const BASE = 'https://api.alquran.cloud/v1';
 
-interface Chapter {
-  id: number;
-  name_simple: string;
-  name_arabic: string;
-  verses_count: number;
+interface Ayah {
+  numberInSurah: number;
+  text: string;
 }
 
-interface VerseRaw {
-  verse_number: number;
-  translations: Array<{ text: string }>;
+interface SurahData {
+  number: number;
+  name: string;           // Arabic name
+  englishName: string;    // e.g. "Al-Fatihah"
+  ayahs: Ayah[];
 }
 
-async function apiFetch<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error(`QuranCDN API error ${res.status}: ${url}`);
-  return res.json() as Promise<T>;
-}
-
-async function fetchChapters(): Promise<Chapter[]> {
-  const data = await apiFetch<{ chapters: Chapter[] }>(`${BASE}/chapters?language=en`);
-  return data.chapters;
-}
-
-async function fetchVerses(surahId: number, total: number): Promise<VerseRaw[]> {
-  const data = await apiFetch<{ verses: VerseRaw[] }>(
-    `${BASE}/verses/by_chapter/${surahId}` +
-    `?language=en&translations=${TRANSLATION_ID}&fields=verse_number&per_page=${total}`
-  );
-  return data.verses;
+async function fetchSurah(surahNumber: number): Promise<SurahData> {
+  const res = await fetch(`${BASE}/surah/${surahNumber}/en.sahih`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json() as { data: SurahData };
+  return json.data;
 }
 
 export async function fetchQuranDocuments(): Promise<ParsedDocument[]> {
-  console.log('Fetching Quran (Sahih International) from QuranCDN API...');
-  const chapters = await fetchChapters();
+  console.log('Fetching Quran (Sahih International) from Al-Quran Cloud API...');
   const docs: ParsedDocument[] = [];
 
-  for (const ch of chapters) {
-    process.stdout.write(`  Surah ${ch.id}/${chapters.length}: ${ch.name_simple}... `);
+  for (let surahNum = 1; surahNum <= 114; surahNum++) {
+    process.stdout.write(`  Surah ${surahNum}/114... `);
     try {
-      const verses = await fetchVerses(ch.id, ch.verses_count);
+      const surah = await fetchSurah(surahNum);
       let added = 0;
 
-      for (const v of verses) {
-        const raw = v.translations?.[0]?.text ?? '';
-        // Strip HTML footnote tags that the API sometimes returns
-        const text = raw.replace(/<[^>]*>/g, '').trim();
+      for (const ayah of surah.ayahs) {
+        const text = ayah.text?.trim();
         if (!text) continue;
 
         docs.push({
-          content: `${ch.name_simple} (${ch.name_arabic}), Verse ${v.verse_number}: ${text}`,
+          content: `${surah.englishName} (${surah.name}), Verse ${ayah.numberInSurah}: ${text}`,
           metadata: {
             source_type: 'quran',
-            surah_number: ch.id,
-            surah_name: ch.name_simple,
-            verse_number: v.verse_number,
-            reference: `${ch.id}:${v.verse_number}`,
-            title: `Quran ${ch.id}:${v.verse_number}`,
+            surah_number: surah.number,
+            surah_name: surah.englishName,
+            verse_number: ayah.numberInSurah,
+            reference: `${surah.number}:${ayah.numberInSurah}`,
+            title: `Quran ${surah.number}:${ayah.numberInSurah}`,
             language: 'en',
           },
           source_type: 'quran',
@@ -82,14 +67,10 @@ export async function fetchQuranDocuments(): Promise<ParsedDocument[]> {
       console.log(`SKIPPED (${err instanceof Error ? err.message : err})`);
     }
 
-    // Respect API rate limit: ~6 req/s
-    await delay(170);
+    // ~3 req/s to stay within free tier limits
+    await new Promise((r) => setTimeout(r, 350));
   }
 
   console.log(`\nTotal Quran documents: ${docs.length}`);
   return docs;
-}
-
-function delay(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
 }

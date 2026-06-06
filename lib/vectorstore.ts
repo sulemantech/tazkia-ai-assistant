@@ -24,8 +24,8 @@ export async function hybridSearch({
   const { data, error } = await supabaseAdmin.rpc('hybrid_search', {
     query_text: query,
     query_embedding: queryEmbedding,
-    match_count: topK * 2, // fetch more, slice after dedup
-    filter_source_types: sourceTypes ?? null,
+    match_count: topK * 2,
+    filter_source_types: sourceTypes?.join(',') ?? null,
     filter_language: language ?? null,
   });
 
@@ -36,7 +36,7 @@ export async function hybridSearch({
     .filter((doc) => {
       if (seen.has(doc.id)) return false;
       seen.add(doc.id);
-      return doc.similarity > 0.25; // minimum relevance threshold
+      return doc.similarity > 0.05; // Jina scores are lower than OpenAI — keep anything above noise floor
     })
     .slice(0, topK);
 }

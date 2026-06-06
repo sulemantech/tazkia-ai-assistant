@@ -13,7 +13,7 @@ const FATWA_PATTERNS = [
 ];
 
 const MIN_SOURCES = 1;
-const MIN_SIMILARITY = 0.28;
+const MIN_SIMILARITY = 0.1; // Jina embeddings score lower than OpenAI — calibrated for jina-embeddings-v3
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

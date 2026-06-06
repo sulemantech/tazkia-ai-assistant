@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getEmbeddings } from '@/lib/embeddings';
 import { hybridSearch } from '@/lib/vectorstore';
+import { detectSourceTypes } from '@/lib/detect-source';
 import type { SearchRequest } from '@/lib/types';
 
 export const runtime = 'edge';
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const allResults = await hybridSearch({
       query,
       queryEmbedding,
-      sourceTypes: body.source_types,
+      sourceTypes: body.source_types ?? detectSourceTypes(query),
       language: body.language,
       topK: pageSize * page, // over-fetch to support pagination
     });

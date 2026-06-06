@@ -2,14 +2,19 @@
  * Fetches Hadith collections from the free open-source Hadith API.
  * Source: https://github.com/fawazahmed0/hadith-api (CDN-hosted JSON files)
  *
- * Collections ingested:
- *   - Sahih Bukhari  (7563 hadiths — Sahih)
- *   - Sahih Muslim   (3033 — Sahih)
- *   - Abu Dawud      (5274 — Hasan/Sahih mix)
- *   - Al-Tirmidhi   (3956 — Hasan/Sahih mix)
+ * Collections ingested (Kutub al-Sittah — the 6 major Hadith books):
+ *   - Sahih Bukhari  (~7,563 hadiths — Sahih)
+ *   - Sahih Muslim   (~3,033 — Sahih)
+ *   - Abu Dawud      (~5,274 — Hasan/Sahih mix)
+ *   - Al-Tirmidhi   (~3,956 — Hasan/Sahih mix)
+ *   - Ibn Majah      (~4,341 — Hasan/Sahih mix)
+ *   - Al-Nasai       (~5,758 — Hasan/Sahih mix)
  *
- * Total: ~19,826 hadiths.  At ~300 chars avg → ~6 MB content.
- * With 1536-dim embeddings (6 KB each) → ~119 MB for embeddings alone.
+ * Plus early classical collection:
+ *   - Muwatta Malik  (~1,832 — Sahih/earliest major collection)
+ *
+ * Total: ~31,757 hadiths.  At ~300 chars avg → ~10 MB content.
+ * With 1024-dim Jina embeddings (4 KB each) → ~127 MB for embeddings.
  * Fits comfortably in Supabase 500 MB free tier.
  */
 
@@ -27,10 +32,13 @@ const COLLECTIONS: Array<{
   name: string;
   grade: string;
 }> = [
-  { id: 'eng-bukhari',   name: 'Bukhari',   grade: 'Sahih' },
-  { id: 'eng-muslim',    name: 'Muslim',    grade: 'Sahih' },
-  { id: 'eng-abudawud',  name: 'Abu Dawud', grade: 'Hasan/Sahih' },
-  { id: 'eng-tirmidhi', name: 'Tirmidhi',  grade: 'Hasan/Sahih' },
+  { id: 'eng-bukhari',   name: 'bukhari',   grade: 'Sahih' },
+  { id: 'eng-muslim',    name: 'muslim',    grade: 'Sahih' },
+  { id: 'eng-abudawud',  name: 'abudawud',  grade: 'Hasan/Sahih' },
+  { id: 'eng-tirmidhi',  name: 'tirmidhi',  grade: 'Hasan/Sahih' },
+  { id: 'eng-ibnmajah',  name: 'ibnmajah',  grade: 'Hasan/Sahih' },
+  { id: 'eng-nasai',     name: 'nasai',     grade: 'Hasan/Sahih' },
+  { id: 'eng-malik',     name: 'malik',     grade: 'Sahih' },
 ];
 
 interface HadithEntry {
@@ -50,11 +58,20 @@ async function fetchCollection(id: string): Promise<HadithEntry[]> {
   return data.hadiths ?? [];
 }
 
-export async function fetchHadithDocuments(): Promise<ParsedDocument[]> {
-  console.log('Fetching Hadith collections from fawazahmed0/hadith-api CDN...');
+export async function fetchHadithDocuments(
+  only?: string[]  // e.g. ['ibnmajah', 'nasai', 'malik'] — omit for all
+): Promise<ParsedDocument[]> {
+  const target = only?.length
+    ? COLLECTIONS.filter((c) => only.includes(c.name))
+    : COLLECTIONS;
+
+  console.log(
+    `Fetching Hadith collections from fawazahmed0/hadith-api CDN...\n` +
+    `  Collections: ${target.map((c) => c.name).join(', ')}`
+  );
   const all: ParsedDocument[] = [];
 
-  for (const col of COLLECTIONS) {
+  for (const col of target) {
     process.stdout.write(`  ${col.name}... `);
     try {
       const hadiths = await fetchCollection(col.id);

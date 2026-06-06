@@ -10,7 +10,7 @@ export async function GET() {
     const { data, error } = await supabaseAdmin
       .from('documents')
       .select('source_type, language, metadata')
-      .limit(5000); // sufficient for counting, stays well within free tier
+      .limit(50000); // covers full Quran + Hadith (~26K rows)
 
     if (error) throw error;
 
