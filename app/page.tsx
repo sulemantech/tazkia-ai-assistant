@@ -328,7 +328,8 @@ export default function Home() {
   useEffect(() => {
     fetch('/api/sources')
       .then(r => r.json())
-      .then((d: { sources: SourceStats }) => setStats(d.sources))
+      .then((d: { sources: Omit<SourceStats, 'total_documents'>; total_documents: number }) =>
+        setStats({ ...d.sources, total_documents: d.total_documents ?? 0 }))
       .catch(() => {/* silently use fallback */});
   }, []);
 
