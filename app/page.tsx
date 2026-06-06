@@ -536,6 +536,41 @@ export default function Home() {
             filters={filters} toggleFilter={toggleFilter} clearFilters={() => setFilters([])}
             loading={loading} onSubmit={onSubmit} inputRef={inputRef}
           />
+
+          {/* ── Quick suggestions (only on landing) ── */}
+          {!searched && (
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ fontSize: 10, color: T.muted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, textAlign: 'center' }}>
+                Try an example
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                {SUGGESTIONS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setQuery(s); submit(s); }}
+                    style={{
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      borderRadius: 20, padding: '5px 14px',
+                      fontSize: 12, color: '#94a3b8',
+                      transition: 'all 0.2s', whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = T.cyan;
+                      e.currentTarget.style.color = T.cyan;
+                      e.currentTarget.style.background = T.cyanDim;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = T.border;
+                      e.currentTarget.style.color = '#94a3b8';
+                      e.currentTarget.style.background = T.surface;
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -546,16 +581,6 @@ export default function Home() {
         {/* ── Landing dashboard (before any query) ──────────────────────── */}
         {!searched && (
           <div style={{ animation: 'fadeUp 0.4s ease both' }}>
-
-            {/* Metric blocks */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
-              <MetricBlock value={M.total}   label="Documents Indexed"     sub="semantic vectors in DB"    accent={T.cyan} />
-              <MetricBlock value={M.hadith}  label="Authenticated Hadiths" sub="7 major collections"      accent="#3b82f6" />
-              <MetricBlock value={M.quran}   label="Quranic Verses"        sub="6,236 ayat · 114 Surahs"  accent={T.green} />
-              <MetricBlock value={M.tafsir}  label="Tafsir Commentaries"   sub="Ibn Kathir · every ayah"  accent={T.purple} />
-              <MetricBlock value="~5M"       label="Tokens Embedded"        sub="Islamic knowledge corpus" accent={T.amber} />
-              <MetricBlock value="<500ms"    label="Search Latency"         sub="ANN + BM25 hybrid"        accent={T.cyan} />
-            </div>
 
             {/* Bento: KB breakdown + KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -583,14 +608,6 @@ export default function Home() {
                     <div style={{ fontSize: 10, color: T.muted, marginTop: 4 }}>{row.sub}</div>
                   </div>
                 ))}
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: `1px solid ${T.border}` }}>
-                  {[{ v: M.total, l: 'Total Docs' }, { v: '~5M', l: 'Tokens' }, { v: 'IVFFlat', l: 'Index' }, { v: 'cosine', l: 'Similarity' }].map(m => (
-                    <div key={m.l}>
-                      <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: T.cyan }}>{m.v}</div>
-                      <div style={{ fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 1 }}>{m.l}</div>
-                    </div>
-                  ))}
-                </div>
               </GlassCard>
 
               <GlassCard style={{ padding: '1.5rem' }}>
@@ -646,39 +663,6 @@ export default function Home() {
               </div>
             </GlassCard>
 
-            {/* Suggestions */}
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ flex: 1, height: 1, background: T.border, display: 'inline-block' }} />
-              Try these examples
-              <span style={{ flex: 1, height: 1, background: T.border, display: 'inline-block' }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {SUGGESTIONS.map(s => (
-                <button key={s} onClick={() => { setQuery(s); submit(s); }} style={{
-                  textAlign: 'left', background: T.surface,
-                  border: `1px solid ${T.border}`, borderRadius: 10,
-                  padding: '0.8rem 1.1rem', fontSize: 13, color: T.text,
-                  transition: 'all 0.2s',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget;
-                    el.style.borderColor = T.cyan;
-                    el.style.background  = T.cyanDim;
-                    el.style.boxShadow   = `0 0 16px ${T.cyan}15`;
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget;
-                    el.style.borderColor = T.border;
-                    el.style.background  = T.surface;
-                    el.style.boxShadow   = 'none';
-                  }}
-                >
-                  <span>{s}</span>
-                  <span style={{ color: T.cyan, fontSize: 14, flexShrink: 0, opacity: 0.6 }}>›</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
