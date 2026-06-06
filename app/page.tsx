@@ -394,7 +394,7 @@ export default function Home() {
                 <SourceCard
                   key={s.id ?? i}
                   meta={s.metadata}
-                  excerpt={'excerpt' in s ? s.excerpt : s.content}
+                  excerpt={s.excerpt}
                   similarity={s.similarity}
                 />
               ))}
