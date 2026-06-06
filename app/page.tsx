@@ -484,12 +484,12 @@ export default function Home() {
             justifyContent: 'center', gap: '0.25rem',
           }}>
             {[
-              { value: stats ? stats.total_documents.toLocaleString() : '44,193+', label: 'Documents Indexed',   sub: 'vectors in Supabase' },
-              { value: '~5M',     label: 'Tokens Embedded',    sub: 'Islamic knowledge' },
-              { value: '1,024',   label: 'Vector Dimensions',  sub: 'Jina v3 embeddings' },
-              { value: '7',       label: 'Hadith Collections', sub: 'Kutub al-Sittah + Muwatta' },
-              { value: '114',     label: 'Quranic Surahs',     sub: 'complete coverage' },
-              { value: '<500ms',  label: 'Search Latency',     sub: 'ANN + FTS hybrid' },
+              { value: stats ? stats.total_documents.toLocaleString() : '44,193+', label: 'Documents Indexed',   sub: 'semantic vectors in DB' },
+              { value: stats ? stats.hadith.document_count.toLocaleString() : '31,757', label: 'Authenticated Hadiths', sub: '7 major collections' },
+              { value: stats ? stats.quran.document_count.toLocaleString() : '6,236',   label: 'Quranic Verses',        sub: '114 Surahs · complete' },
+              { value: '~5M',    label: 'Tokens Embedded',   sub: 'Islamic knowledge' },
+              { value: '1,024',  label: 'Vector Dimensions', sub: 'Jina v3 embeddings' },
+              { value: '<500ms', label: 'Search Latency',    sub: 'ANN + FTS hybrid' },
             ].map((m, i, arr) => (
               <div key={m.label} style={{
                 textAlign: 'center',
