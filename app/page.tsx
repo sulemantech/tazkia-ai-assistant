@@ -11,7 +11,7 @@ interface ResultMeta {
   book?: string; hadith_number?: number | string; grade?: string;
   author?: string; tafsir_name?: string; reference?: string;
 }
-interface AskSource   { id: string; metadata: ResultMeta; similarity: number; excerpt: string; }
+interface AskSource    { id: string; metadata: ResultMeta; similarity: number; excerpt: string; }
 interface SearchResult { id: string; content: string; metadata: ResultMeta; similarity: number; }
 type StepStatus = 'idle' | 'active' | 'done' | 'error';
 interface PipelineStep { step: number; label: string; tech: string; status: StepStatus; duration_ms?: number; }
@@ -23,11 +23,11 @@ interface SourceStats {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PIPELINE_INIT: PipelineStep[] = [
-  { step: 1, label: 'Query Rewrite',    tech: 'Gemini AI',          status: 'idle' },
-  { step: 2, label: 'Vector Embed',     tech: 'Jina AI · 1024-dim', status: 'idle' },
-  { step: 3, label: 'Hybrid Search',    tech: 'pgvector + FTS',     status: 'idle' },
-  { step: 4, label: 'RAG Assembly',     tech: 'Context Pipeline',   status: 'idle' },
-  { step: 5, label: 'AI Generation',    tech: 'Gemini 2.0 Flash',   status: 'idle' },
+  { step: 1, label: 'Query Rewrite',  tech: 'Gemini AI',          status: 'idle' },
+  { step: 2, label: 'Vector Embed',   tech: 'Jina AI · 1024-dim', status: 'idle' },
+  { step: 3, label: 'Hybrid Search',  tech: 'pgvector + FTS',     status: 'idle' },
+  { step: 4, label: 'RAG Assembly',   tech: 'Context Pipeline',   status: 'idle' },
+  { step: 5, label: 'AI Generation',  tech: 'Gemini 2.0 Flash',   status: 'idle' },
 ];
 
 const SOURCE_COLOR: Record<string, string> = {
@@ -60,7 +60,7 @@ function refLabel(meta: ResultMeta): string {
   return meta.reference ?? '';
 }
 
-// ── Design tokens (inline) ────────────────────────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
 
 const T = {
   bg:       '#060912',
@@ -141,7 +141,7 @@ function SourceCard({ meta, excerpt, similarity }: {
   meta: ResultMeta; excerpt: string; similarity: number;
 }) {
   const color = SOURCE_COLOR[meta.source_type] ?? T.muted;
-  const pct = Math.round(similarity * 100);
+  const pct   = Math.round(similarity * 100);
   return (
     <div style={{
       background: T.surface, borderRadius: 12,
@@ -188,77 +188,10 @@ function SourceCard({ meta, excerpt, similarity }: {
   );
 }
 
-function PipelineBlock({ step, active, last }: { step: PipelineStep; active: boolean; last: boolean }) {
-  const isIdle = step.status === 'idle';
-  const isDone = step.status === 'done';
-  const isActive = step.status === 'active';
-
-  const borderColor = isDone ? T.green : isActive ? T.cyan : T.border;
-  const numColor    = isDone ? T.green : isActive ? T.cyan : T.dim;
-  const glowColor   = isDone ? T.green : isActive ? T.cyan : 'transparent';
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', flex: last ? 0 : 1, minWidth: 0 }}>
-      <div style={{
-        flex: '0 0 auto', minWidth: 130,
-        background: isActive ? `${T.cyanDim}` : isDone ? `${T.greenDim}` : T.surface,
-        border: `1px solid ${borderColor}`,
-        borderRadius: 10, padding: '0.85rem 1rem',
-        transition: 'all 0.4s ease',
-        boxShadow: isActive || isDone ? `0 0 20px ${glowColor}30` : 'none',
-        animation: isActive ? 'pulse-cyan 2s infinite' : 'none',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* Step number */}
-        <div style={{
-          fontFamily: 'monospace', fontSize: 10, fontWeight: 800,
-          color: numColor, marginBottom: 6, letterSpacing: '0.05em',
-        }}>
-          {String(step.step).padStart(2, '0')}
-        </div>
-        {/* Label */}
-        <div style={{ fontSize: 12, fontWeight: 700, color: isDone || isActive ? T.text : T.muted }}>
-          {step.label}
-        </div>
-        {/* Tech */}
-        <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{step.tech}</div>
-        {/* Status */}
-        {isDone && step.duration_ms !== undefined && (
-          <div style={{
-            marginTop: 6, fontFamily: 'monospace', fontSize: 10,
-            fontWeight: 800, color: T.green,
-          }}>
-            ✓ {fmtMs(step.duration_ms)}
-          </div>
-        )}
-        {isActive && (
-          <div style={{ marginTop: 6, fontSize: 10, color: T.cyan, fontWeight: 600 }}>
-            ◉ running…
-          </div>
-        )}
-      </div>
-
-      {/* Connector arrow */}
-      {!last && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 4px' }}>
-          <div style={{
-            flex: 1, height: 1,
-            background: isDone
-              ? `linear-gradient(90deg, ${T.green}, ${T.green}60)`
-              : `linear-gradient(90deg, ${T.border}, ${T.border})`,
-            transition: 'background 0.4s ease',
-          }} />
-          <div style={{ color: isDone ? T.green : T.dim, fontSize: 10, lineHeight: 1 }}>›</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boolean }) {
   if (!visible) return null;
-  const totalDone = steps.filter(s => s.status === 'done').length;
-  const totalMs   = steps.reduce((a, s) => a + (s.duration_ms ?? 0), 0);
+  const totalMs = steps.reduce((a, s) => a + (s.duration_ms ?? 0), 0);
+  const allDone = steps.every(s => s.status === 'done');
 
   return (
     <GlassCard style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both' }}>
@@ -269,24 +202,179 @@ function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boole
             RAG Pipeline
           </span>
         </div>
-        {totalDone === 5 && (
-          <span style={{
-            fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: T.green,
-            background: T.greenDim, border: `1px solid ${T.green}30`,
-            borderRadius: 20, padding: '3px 12px',
-          }}>
+        {allDone && (
+          <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: T.green, background: T.greenDim, border: `1px solid ${T.green}30`, borderRadius: 20, padding: '3px 12px' }}>
             ✓ {fmtMs(totalMs)} total
           </span>
         )}
       </div>
-      <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'stretch', minWidth: 660, gap: 0 }}>
-          {steps.map((s, i) => (
-            <PipelineBlock key={s.step} step={s} active={s.status === 'active'} last={i === steps.length - 1} />
-          ))}
-        </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+        {steps.map(s => {
+          const isDone   = s.status === 'done';
+          const isActive = s.status === 'active';
+          const accent   = isDone ? T.green : isActive ? T.cyan : T.dim;
+          return (
+            <div key={s.step} style={{
+              background: isActive ? T.cyanDim : isDone ? T.greenDim : T.s2,
+              border: `1px solid ${isActive ? T.cyan : isDone ? T.green : T.border}`,
+              borderTop: `2px solid ${accent}`,
+              borderRadius: 10, padding: '0.85rem 0.9rem',
+              transition: 'all 0.35s ease',
+              boxShadow: isActive ? `0 0 18px ${T.cyan}25` : isDone ? `0 0 12px ${T.green}15` : 'none',
+              animation: isActive ? 'pulse-cyan 2s infinite' : 'none',
+            }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: accent, marginBottom: 5, letterSpacing: '0.05em' }}>
+                {String(s.step).padStart(2, '0')}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: isDone || isActive ? T.text : T.muted, lineHeight: 1.3 }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{s.tech}</div>
+              {isDone && s.duration_ms !== undefined && (
+                <div style={{ marginTop: 6, fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: T.green }}>
+                  ✓ {fmtMs(s.duration_ms)}
+                </div>
+              )}
+              {isActive && (
+                <div style={{ marginTop: 6, fontSize: 10, color: T.cyan, fontWeight: 600 }}>◉ running…</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </GlassCard>
+  );
+}
+
+// ── Hero Search ───────────────────────────────────────────────────────────────
+
+function HeroSearch({
+  query, setQuery, mode, setMode, filters, toggleFilter, clearFilters, loading, onSubmit, inputRef,
+}: {
+  query: string; setQuery: (v: string) => void;
+  mode: 'ask' | 'search'; setMode: (m: 'ask' | 'search') => void;
+  filters: SourceType[]; toggleFilter: (t: SourceType) => void; clearFilters: () => void;
+  loading: boolean; onSubmit: (e: React.FormEvent) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) {
+  const active = !!query.trim() && !loading;
+  return (
+    <div style={{
+      position: 'relative',
+      background: T.s2,
+      border: `1.5px solid ${T.cyan}40`,
+      borderRadius: 18,
+      padding: '0.25rem 0.25rem 0.75rem',
+      boxShadow: `0 0 0 1px ${T.cyan}10, 0 0 60px ${T.cyan}12, 0 8px 40px rgba(0,0,0,0.5)`,
+    }}>
+      {/* Top glow line */}
+      <div style={{
+        position: 'absolute', top: 0, left: '10%', right: '10%', height: 1,
+        background: `linear-gradient(90deg, transparent, ${T.cyan}80, transparent)`,
+        borderRadius: 1,
+      }} />
+
+      <form onSubmit={onSubmit}>
+        <div style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
+          {/* Mode pill (left of input) */}
+          <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '0.75rem', gap: 6, flexShrink: 0 }}>
+            {(['ask', 'search'] as const).map(m => (
+              <button
+                key={m} type="button" onClick={() => setMode(m)}
+                style={{
+                  padding: '4px 12px', borderRadius: 20, fontSize: 10, fontWeight: 800,
+                  border: `1px solid ${mode === m ? T.cyan : 'transparent'}`,
+                  background: mode === m ? T.cyanDim : 'transparent',
+                  color: mode === m ? T.cyan : T.muted,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  transition: 'all 0.15s', whiteSpace: 'nowrap',
+                }}
+              >
+                {m === 'ask' ? 'Ask AI' : 'Search'}
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, background: T.border, margin: '0.5rem 0.5rem' }} />
+
+          {/* Input */}
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={mode === 'ask'
+              ? 'Ask anything about Quran, Hadith, or Tafsir…'
+              : 'Semantic search across 44,000+ Islamic texts…'}
+            disabled={loading}
+            style={{
+              flex: 1, padding: '1rem 0.75rem',
+              background: 'transparent', border: 'none',
+              fontSize: 16, outline: 'none',
+              color: T.text,
+            }}
+          />
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={!active}
+            style={{
+              margin: '0.4rem',
+              background: active
+                ? `linear-gradient(135deg, ${T.cyan}, #0891b2)`
+                : T.s3,
+              color: active ? '#000' : T.muted,
+              border: `1px solid ${active ? T.cyan : T.border}`,
+              borderRadius: 12, padding: '0 1.5rem',
+              fontSize: 13, fontWeight: 900,
+              letterSpacing: '0.05em', whiteSpace: 'nowrap',
+              transition: 'all 0.2s',
+              boxShadow: active ? `0 0 20px ${T.cyan}50` : 'none',
+              minWidth: 100,
+            }}
+          >
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ animation: 'blink 1s infinite', color: T.cyan }}>◉</span> Running
+              </span>
+            ) : mode === 'ask' ? '⟡ Ask AI' : '⟡ Search'}
+          </button>
+        </div>
+      </form>
+
+      {/* Source filters row */}
+      <div style={{ display: 'flex', gap: 6, paddingLeft: '1rem', paddingTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 10, color: T.muted, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginRight: 4 }}>
+          Filter:
+        </span>
+        {(['quran', 'hadith', 'tafsir'] as SourceType[]).map(t => (
+          <button
+            key={t} type="button" onClick={() => toggleFilter(t)}
+            style={{
+              padding: '3px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+              border: `1px solid ${filters.includes(t) ? SOURCE_COLOR[t] : T.border}`,
+              background: filters.includes(t) ? `${SOURCE_COLOR[t]}20` : 'transparent',
+              color: filters.includes(t) ? SOURCE_COLOR[t] : T.muted,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              transition: 'all 0.15s',
+            }}
+          >
+            {SOURCE_LABEL[t]}
+          </button>
+        ))}
+        {filters.length > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            style={{ fontSize: 10, color: T.muted, background: 'none', border: 'none', padding: '3px 8px', cursor: 'pointer' }}
+          >
+            — all sources
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -388,7 +476,6 @@ export default function Home() {
   const confPct   = confidence !== null ? Math.round(confidence * 100) : null;
   const confColor = confPct === null ? T.muted : confPct >= 75 ? T.green : confPct >= 50 ? T.amber : '#ef4444';
 
-  // Live metric values
   const M = {
     total:  stats ? stats.total_documents.toLocaleString() : '44,193+',
     hadith: stats ? stats.hadith.document_count.toLocaleString() : '31,757',
@@ -399,41 +486,42 @@ export default function Home() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: T.bg }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Hero header ────────────────────────────────────────────────────── */}
       <header style={{
         position: 'relative', overflow: 'hidden',
+        padding: '3rem 1.25rem 2.5rem',
+        background: `radial-gradient(ellipse 90% 70% at 50% 0%, rgba(34,211,238,0.07) 0%, transparent 65%), ${T.bg}`,
         borderBottom: `1px solid ${T.border}`,
-        padding: '2.5rem 1.25rem 2rem',
-        background: `radial-gradient(ellipse 80% 60% at 50% -20%, rgba(34,211,238,0.08) 0%, transparent 70%), ${T.bg}`,
       }}>
         {/* Grid bg */}
         <div style={{
-          position: 'absolute', inset: 0, opacity: 0.4,
+          position: 'absolute', inset: 0, opacity: 0.35,
           backgroundImage: `linear-gradient(${T.border} 1px, transparent 1px), linear-gradient(90deg, ${T.border} 1px, transparent 1px)`,
           backgroundSize: '40px 40px',
         }} />
 
-        <div style={{ position: 'relative', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ position: 'relative', maxWidth: 780, margin: '0 auto' }}>
+
           {/* Brand */}
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <div style={{
               display: 'inline-block',
               background: `linear-gradient(135deg, ${T.cyan}, #fff 45%, ${T.purple})`,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              fontSize: 'clamp(2rem, 6vw, 3rem)', fontWeight: 900,
-              letterSpacing: '-0.04em', lineHeight: 1.1,
+              fontSize: 'clamp(2.2rem, 7vw, 3.5rem)', fontWeight: 900,
+              letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: 10,
             }}>
               TAZKIA AI
             </div>
-            <div style={{ fontSize: 12, color: T.muted, marginTop: 8, letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 600 }}>
-              Islamic Knowledge Intelligence Platform
+            <div style={{ fontSize: 13, color: '#94a3b8', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>
+              Islamic Knowledge Intelligence · RAG System
             </div>
-            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-              {['Retrieval-Augmented Generation', 'Hybrid Vector Search', 'Real-time SSE Streaming', 'Hallucination-Free'].map(tag => (
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {['44,193+ Documents', 'Hybrid Vector Search', 'Real-time Streaming', 'Zero Hallucination'].map(tag => (
                 <span key={tag} style={{
-                  fontSize: 10, fontWeight: 600, color: T.muted,
+                  fontSize: 10, fontWeight: 700, color: T.muted,
                   background: T.surface, border: `1px solid ${T.border}`,
-                  borderRadius: 20, padding: '2px 10px', letterSpacing: '0.05em',
+                  borderRadius: 20, padding: '3px 12px', letterSpacing: '0.04em',
                 }}>
                   {tag}
                 </span>
@@ -441,114 +529,83 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Metrics bento grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
-            <MetricBlock value={M.total}   label="Documents Indexed"    sub="semantic vectors in DB"     accent={T.cyan} />
-            <MetricBlock value={M.hadith}  label="Authenticated Hadiths" sub="7 major collections"       accent="#3b82f6" />
-            <MetricBlock value={M.quran}   label="Quranic Verses"        sub="6,236 ayat · 114 Surahs"   accent={T.green} />
-            <MetricBlock value={M.tafsir}  label="Tafsir Commentaries"   sub="Ibn Kathir · every ayah"  accent={T.purple} />
-            <MetricBlock value="~5M"       label="Tokens Embedded"        sub="Islamic knowledge corpus" accent={T.amber} />
-            <MetricBlock value="<500ms"    label="Search Latency"         sub="ANN + BM25 hybrid"        accent={T.cyan} />
-          </div>
+          {/* ── Hero Search ── */}
+          <HeroSearch
+            query={query} setQuery={setQuery}
+            mode={mode} setMode={setMode}
+            filters={filters} toggleFilter={toggleFilter} clearFilters={() => setFilters([])}
+            loading={loading} onSubmit={onSubmit} inputRef={inputRef}
+          />
         </div>
       </header>
 
-      {/* ── Sticky search bar ──────────────────────────────────────────────── */}
-      <div style={{
-        background: `${T.surface}ee`, backdropFilter: 'blur(16px)',
-        borderBottom: `1px solid ${T.border}`,
-        padding: '0.85rem 1.25rem', position: 'sticky', top: 0, zIndex: 20,
-      }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <form onSubmit={onSubmit}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder={mode === 'ask' ? 'Ask anything about Quran, Hadith, or Tafsir…' : 'Semantic search across Islamic texts…'}
-                disabled={loading}
-                style={{
-                  flex: 1, padding: '0.7rem 1rem',
-                  background: T.s2, border: `1px solid ${T.border}`,
-                  borderRadius: 10, fontSize: 14, outline: 'none',
-                  color: T.text, transition: 'border-color 0.2s, box-shadow 0.2s',
-                }}
-                onFocus={e => {
-                  e.target.style.borderColor = T.cyan;
-                  e.target.style.boxShadow = `0 0 0 3px ${T.cyanDim}`;
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = T.border;
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-              <button
-                type="submit"
-                disabled={loading || !query.trim()}
-                style={{
-                  background: loading || !query.trim()
-                    ? T.s3
-                    : `linear-gradient(135deg, ${T.cyan}cc, #0891b2)`,
-                  color: loading || !query.trim() ? T.muted : '#000',
-                  border: `1px solid ${loading || !query.trim() ? T.border : T.cyan}`,
-                  borderRadius: 10, padding: '0.7rem 1.4rem',
-                  fontSize: 13, fontWeight: 800,
-                  letterSpacing: '0.04em', whiteSpace: 'nowrap',
-                  transition: 'all 0.2s',
-                  boxShadow: loading || !query.trim() ? 'none' : `0 0 16px ${T.cyan}40`,
-                }}
-              >
-                {loading ? '…' : mode === 'ask' ? '⟡ Ask AI' : '⟡ Search'}
-              </button>
-            </div>
-          </form>
-
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {(['ask', 'search'] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{
-                padding: '3px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                border: `1px solid ${mode === m ? T.cyan : T.border}`,
-                background: mode === m ? T.cyanDim : 'transparent',
-                color: mode === m ? T.cyan : T.muted,
-                letterSpacing: '0.05em', transition: 'all 0.15s',
-              }}>
-                {m === 'ask' ? '◈ ASK AI' : '◎ SEARCH'}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 16, background: T.border, margin: '0 4px' }} />
-            {(['quran', 'hadith', 'tafsir'] as SourceType[]).map(t => (
-              <button key={t} onClick={() => toggleFilter(t)} style={{
-                padding: '3px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                border: `1px solid ${filters.includes(t) ? SOURCE_COLOR[t] : T.border}`,
-                background: filters.includes(t) ? `${SOURCE_COLOR[t]}20` : 'transparent',
-                color: filters.includes(t) ? SOURCE_COLOR[t] : T.muted,
-                letterSpacing: '0.05em', transition: 'all 0.15s',
-              }}>
-                {SOURCE_LABEL[t].toUpperCase()}
-              </button>
-            ))}
+      {/* ── Sticky compact search (after scrolling past hero) ──────────────── */}
+      {searched && (
+        <div style={{
+          background: `${T.surface}f0`, backdropFilter: 'blur(16px)',
+          borderBottom: `1px solid ${T.border}`,
+          padding: '0.6rem 1.25rem', position: 'sticky', top: 0, zIndex: 20,
+        }}>
+          <div style={{ maxWidth: 780, margin: '0 auto' }}>
+            <form onSubmit={onSubmit}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={query} onChange={e => setQuery(e.target.value)}
+                  placeholder="Ask another question…" disabled={loading}
+                  style={{
+                    flex: 1, padding: '0.55rem 1rem',
+                    background: T.s2, border: `1px solid ${T.border}`,
+                    borderRadius: 8, fontSize: 14, outline: 'none', color: T.text,
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyanDim}`; }}
+                  onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
+                />
+                <button
+                  type="submit" disabled={loading || !query.trim()}
+                  style={{
+                    background: loading || !query.trim() ? T.s3 : `linear-gradient(135deg, ${T.cyan}cc, #0891b2)`,
+                    color: loading || !query.trim() ? T.muted : '#000',
+                    border: `1px solid ${loading || !query.trim() ? T.border : T.cyan}`,
+                    borderRadius: 8, padding: '0.55rem 1.2rem',
+                    fontSize: 12, fontWeight: 800, transition: 'all 0.2s',
+                    boxShadow: loading || !query.trim() ? 'none' : `0 0 12px ${T.cyan}40`,
+                  }}
+                >
+                  {loading ? '…' : mode === 'ask' ? '⟡ Ask' : '⟡ Search'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Main content ───────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, maxWidth: 900, width: '100%', margin: '0 auto', padding: '1.5rem 1.25rem 4rem' }}>
+      <main style={{ flex: 1, maxWidth: 780, width: '100%', margin: '0 auto', padding: '1.75rem 1.25rem 4rem' }}>
 
-        {/* ── Landing dashboard ─────────────────────────────────────────── */}
+        {/* ── Landing dashboard (before any query) ──────────────────────── */}
         {!searched && (
           <div style={{ animation: 'fadeUp 0.4s ease both' }}>
 
-            {/* Bento top row: knowledge base + accuracy grid */}
+            {/* Metric blocks */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
+              <MetricBlock value={M.total}   label="Documents Indexed"     sub="semantic vectors in DB"    accent={T.cyan} />
+              <MetricBlock value={M.hadith}  label="Authenticated Hadiths" sub="7 major collections"      accent="#3b82f6" />
+              <MetricBlock value={M.quran}   label="Quranic Verses"        sub="6,236 ayat · 114 Surahs"  accent={T.green} />
+              <MetricBlock value={M.tafsir}  label="Tafsir Commentaries"   sub="Ibn Kathir · every ayah"  accent={T.purple} />
+              <MetricBlock value="~5M"       label="Tokens Embedded"        sub="Islamic knowledge corpus" accent={T.amber} />
+              <MetricBlock value="<500ms"    label="Search Latency"         sub="ANN + BM25 hybrid"        accent={T.cyan} />
+            </div>
+
+            {/* Bento: KB breakdown + KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
 
-              {/* Knowledge base breakdown */}
-              <GlassCard style={{ padding: '1.5rem', gridColumn: '1' }}>
+              <GlassCard style={{ padding: '1.5rem' }}>
                 <Label>Knowledge Base</Label>
                 {[
-                  { color: T.green,  label: 'QURAN',  title: `${M.quran} Verses`, sub: '6,236 ayat · 114 Surahs · Sahih International', pct: stats ? Math.round(stats.quran.document_count / stats.total_documents * 100) : 14 },
-                  { color: '#3b82f6', label: 'HADITH', title: `${M.hadith} Hadiths`, sub: 'Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta', pct: stats ? Math.round(stats.hadith.document_count / stats.total_documents * 100) : 72 },
-                  { color: T.purple, label: 'TAFSIR', title: `${M.tafsir} Commentaries`, sub: 'Tafsir Ibn Kathir · Every ayah covered', pct: stats ? Math.round(stats.tafsir.document_count / stats.total_documents * 100) : 14 },
+                  { color: T.green,   label: 'QURAN',  title: `${M.quran} Verses`,         sub: '6,236 ayat · 114 Surahs · Sahih International',     pct: stats ? Math.round(stats.quran.document_count  / stats.total_documents * 100) : 14 },
+                  { color: '#3b82f6', label: 'HADITH', title: `${M.hadith} Hadiths`,        sub: 'Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta', pct: stats ? Math.round(stats.hadith.document_count / stats.total_documents * 100) : 72 },
+                  { color: T.purple,  label: 'TAFSIR', title: `${M.tafsir} Commentaries`,   sub: 'Tafsir Ibn Kathir · every ayah covered',            pct: stats ? Math.round(stats.tafsir.document_count / stats.total_documents * 100) : 14 },
                 ].map(row => (
                   <div key={row.label} style={{ marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
@@ -566,14 +623,8 @@ export default function Home() {
                     <div style={{ fontSize: 10, color: T.muted, marginTop: 4 }}>{row.sub}</div>
                   </div>
                 ))}
-                {/* Totals */}
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: `1px solid ${T.border}` }}>
-                  {[
-                    { v: M.total,   l: 'Total Documents' },
-                    { v: '~5M',     l: 'Tokens Indexed' },
-                    { v: 'IVFFlat', l: 'Index Type' },
-                    { v: 'cosine',  l: 'Similarity' },
-                  ].map(m => (
+                  {[{ v: M.total, l: 'Total Docs' }, { v: '~5M', l: 'Tokens' }, { v: 'IVFFlat', l: 'Index' }, { v: 'cosine', l: 'Similarity' }].map(m => (
                     <div key={m.l}>
                       <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: T.cyan }}>{m.v}</div>
                       <div style={{ fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 1 }}>{m.l}</div>
@@ -582,25 +633,20 @@ export default function Home() {
                 </div>
               </GlassCard>
 
-              {/* System KPIs */}
               <GlassCard style={{ padding: '1.5rem' }}>
                 <Label>System KPIs</Label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
-                    { icon: '⟡', kpi: 'Retrieval',       val: 'Hybrid Search',   sub: 'Semantic 70% + BM25 30%',    c: T.cyan },
-                    { icon: '◈', kpi: 'Embeddings',       val: 'Jina AI v3',      sub: '1,024-dim · 8k token ctx',   c: '#3b82f6' },
-                    { icon: '⚡', kpi: 'Index',            val: 'IVFFlat ANN',     sub: 'lists=100 · probes=10',      c: T.amber },
-                    { icon: '✓', kpi: 'Grounding',        val: '100% Cited',      sub: 'No hallucination enforced',  c: T.green },
-                    { icon: '◎', kpi: 'Confidence',       val: 'Real-time',       sub: 'Per-response scoring',       c: T.purple },
-                    { icon: '⟳', kpi: 'Query Augment',   val: 'LLM Rewrite',     sub: 'Arabic + Islamic terms',     c: T.cyan },
-                    { icon: '▸', kpi: 'Streaming',        val: 'SSE Tokens',      sub: 'Real-time generation',       c: T.green },
-                    { icon: '◆', kpi: 'Sources',          val: 'Sahih / Hasan',   sub: '1400yr authenticated texts', c: T.amber },
+                    { icon: '⟡', kpi: 'Retrieval',     val: 'Hybrid Search',  sub: 'Semantic 70% + BM25 30%',    c: T.cyan },
+                    { icon: '◈', kpi: 'Embeddings',     val: 'Jina AI v3',     sub: '1,024-dim · 8k token ctx',   c: '#3b82f6' },
+                    { icon: '⚡', kpi: 'Index',          val: 'IVFFlat ANN',    sub: 'lists=100 · probes=10',      c: T.amber },
+                    { icon: '✓', kpi: 'Grounding',      val: '100% Cited',     sub: 'No hallucination enforced',  c: T.green },
+                    { icon: '◎', kpi: 'Confidence',     val: 'Real-time',      sub: 'Per-response scoring',       c: T.purple },
+                    { icon: '⟳', kpi: 'Query Augment', val: 'LLM Rewrite',    sub: 'Arabic + Islamic terms',     c: T.cyan },
+                    { icon: '▸', kpi: 'Streaming',      val: 'SSE Tokens',     sub: 'Real-time generation',       c: T.green },
+                    { icon: '◆', kpi: 'Sources',        val: 'Sahih / Hasan',  sub: '1400yr authenticated texts', c: T.amber },
                   ].map(item => (
-                    <div key={item.kpi} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '0.55rem 0.75rem', background: T.s2,
-                      borderRadius: 8, border: `1px solid ${T.border}`,
-                    }}>
+                    <div key={item.kpi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.55rem 0.75rem', background: T.s2, borderRadius: 8, border: `1px solid ${T.border}` }}>
                       <span style={{ fontSize: 14, color: item.c, width: 18, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -615,68 +661,57 @@ export default function Home() {
               </GlassCard>
             </div>
 
-            {/* Pipeline flow (static how-it-works) */}
+            {/* Pipeline architecture */}
             <GlassCard style={{ padding: '1.5rem', marginBottom: 12 }}>
               <Label>RAG Pipeline Architecture</Label>
-              <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-                <div style={{ display: 'flex', minWidth: 640, gap: 0 }}>
-                  {[
-                    { n: '01', label: 'Query Rewrite', tech: 'Gemini AI', desc: 'Enriched with Islamic terms', c: T.cyan },
-                    { n: '02', label: 'Vector Embed',  tech: 'Jina AI',   desc: '1,024-dim representation',  c: '#3b82f6' },
-                    { n: '03', label: 'Hybrid Search', tech: 'pgvector',  desc: 'ANN + BM25 fusion',         c: T.purple },
-                    { n: '04', label: 'RAG Assembly',  tech: 'Pipeline',  desc: 'Rank · deduplicate · score', c: T.amber },
-                    { n: '05', label: 'AI Response',   tech: 'Gemini 2.0', desc: 'Grounded · cited · streamed', c: T.green },
-                  ].map((s, i, arr) => (
-                    <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: i < arr.length - 1 ? 1 : 0 }}>
-                      <div style={{
-                        background: `${s.c}10`, border: `1px solid ${s.c}30`,
-                        borderRadius: 10, padding: '0.85rem 1rem',
-                        minWidth: 120, flexShrink: 0,
-                      }}>
-                        <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: s.c, marginBottom: 4 }}>{s.n}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{s.label}</div>
-                        <div style={{ fontSize: 10, color: s.c, marginTop: 2, opacity: 0.8 }}>{s.tech}</div>
-                        <div style={{ fontSize: 10, color: T.muted, marginTop: 4 }}>{s.desc}</div>
-                      </div>
-                      {i < arr.length - 1 && (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 4px' }}>
-                          <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${s.c}40, ${arr[i+1].c}40)` }} />
-                          <span style={{ color: T.muted, fontSize: 10 }}>›</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                {[
+                  { n: '01', label: 'Query Rewrite', tech: 'Gemini AI',  desc: 'Enriched with Islamic terms' },
+                  { n: '02', label: 'Vector Embed',  tech: 'Jina AI',    desc: '1,024-dim representation'   },
+                  { n: '03', label: 'Hybrid Search', tech: 'pgvector',   desc: 'ANN + BM25 fusion'          },
+                  { n: '04', label: 'RAG Assembly',  tech: 'Pipeline',   desc: 'Rank · deduplicate · score' },
+                  { n: '05', label: 'AI Response',   tech: 'Gemini 2.0', desc: 'Grounded · cited · streamed'},
+                ].map(s => (
+                  <div key={s.n} style={{
+                    background: T.s2, border: `1px solid ${T.border}`,
+                    borderTop: `2px solid ${T.cyan}`,
+                    borderRadius: 10, padding: '0.85rem 0.9rem',
+                  }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: T.cyan, marginBottom: 5 }}>{s.n}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.text, lineHeight: 1.3 }}>{s.label}</div>
+                    <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{s.tech}</div>
+                    <div style={{ fontSize: 10, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>{s.desc}</div>
+                  </div>
+                ))}
               </div>
             </GlassCard>
 
             {/* Suggestions */}
             <div style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 20, height: 1, background: T.muted, display: 'inline-block', opacity: 0.4 }} />
+              <span style={{ flex: 1, height: 1, background: T.border, display: 'inline-block' }} />
               Try these examples
-              <span style={{ width: 20, height: 1, background: T.muted, display: 'inline-block', opacity: 0.4 }} />
+              <span style={{ flex: 1, height: 1, background: T.border, display: 'inline-block' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {SUGGESTIONS.map((s, i) => (
+              {SUGGESTIONS.map(s => (
                 <button key={s} onClick={() => { setQuery(s); submit(s); }} style={{
                   textAlign: 'left', background: T.surface,
                   border: `1px solid ${T.border}`, borderRadius: 10,
                   padding: '0.8rem 1.1rem', fontSize: 13, color: T.text,
                   transition: 'all 0.2s',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                  animationDelay: `${i * 0.05}s`,
                 }}
                   onMouseEnter={e => {
                     const el = e.currentTarget;
                     el.style.borderColor = T.cyan;
-                    el.style.background = T.cyanDim;
-                    el.style.boxShadow = `0 0 16px ${T.cyan}15`;
+                    el.style.background  = T.cyanDim;
+                    el.style.boxShadow   = `0 0 16px ${T.cyan}15`;
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget;
                     el.style.borderColor = T.border;
-                    el.style.background = T.surface;
-                    el.style.boxShadow = 'none';
+                    el.style.background  = T.surface;
+                    el.style.boxShadow   = 'none';
                   }}
                 >
                   <span>{s}</span>
@@ -687,10 +722,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Pipeline tracker (during ask) ──────────────────────────────── */}
+        {/* ── Pipeline tracker ───────────────────────────────────────────── */}
         <PipelineViz steps={pipeline} visible={showPipeline} />
 
-        {/* ── Answer block ───────────────────────────────────────────────── */}
+        {/* ── Answer ─────────────────────────────────────────────────────── */}
         {mode === 'ask' && searched && (
           <GlassCard glow={T.green} style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both', borderLeft: `3px solid ${T.green}` }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
@@ -700,7 +735,7 @@ export default function Home() {
                   AI Answer
                 </span>
                 {loading && (
-                  <span style={{ fontSize: 9, color: T.cyan, background: T.cyanDim, border: `1px solid ${T.cyan}30`, borderRadius: 20, padding: '1px 8px', fontWeight: 700, letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: 9, color: T.cyan, background: T.cyanDim, border: `1px solid ${T.cyan}30`, borderRadius: 20, padding: '1px 8px', fontWeight: 700 }}>
                     STREAMING
                   </span>
                 )}
@@ -722,7 +757,7 @@ export default function Home() {
               </p>
             ) : (
               <p style={{ fontSize: 14, color: T.muted, fontStyle: 'italic', margin: 0 }}>
-                {loading ? (sources.length > 0 ? 'Generating answer from retrieved sources…' : 'Processing your query…') : 'No answer generated.'}
+                {loading ? 'Processing your query…' : 'No answer generated.'}
               </p>
             )}
             {disclaimer && (
@@ -764,7 +799,7 @@ export default function Home() {
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer style={{ borderTop: `1px solid ${T.border}`, padding: '1.25rem', background: T.surface }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ fontSize: 11, color: T.muted, fontFamily: 'monospace' }}>
             TAZKIA AI · Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta · Tafsir Ibn Kathir
           </div>
