@@ -582,62 +582,6 @@ export default function Home() {
         {!searched && (
           <div style={{ animation: 'fadeUp 0.4s ease both' }}>
 
-            {/* Bento: KB breakdown + KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-
-              <GlassCard style={{ padding: '1.5rem' }}>
-                <Label>Knowledge Base</Label>
-                {[
-                  { color: T.green,   label: 'QURAN',  title: `${M.quran} Verses`,         sub: '6,236 ayat · 114 Surahs · Sahih International',     pct: stats ? Math.round(stats.quran.document_count  / stats.total_documents * 100) : 14 },
-                  { color: '#3b82f6', label: 'HADITH', title: `${M.hadith} Hadiths`,        sub: 'Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta', pct: stats ? Math.round(stats.hadith.document_count / stats.total_documents * 100) : 72 },
-                  { color: T.purple,  label: 'TAFSIR', title: `${M.tafsir} Commentaries`,   sub: 'Tafsir Ibn Kathir · every ayah covered',            pct: stats ? Math.round(stats.tafsir.document_count / stats.total_documents * 100) : 14 },
-                ].map(row => (
-                  <div key={row.label} style={{ marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: row.color, background: `${row.color}20`, border: `1px solid ${row.color}40`, padding: '1px 8px', borderRadius: 20, letterSpacing: '0.1em' }}>
-                          {row.label}
-                        </span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{row.title}</span>
-                      </div>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 800, color: row.color }}>{row.pct}%</span>
-                    </div>
-                    <div style={{ height: 4, background: T.s3, borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: `${row.pct}%`, height: '100%', background: `linear-gradient(90deg, ${row.color}60, ${row.color})`, borderRadius: 2, boxShadow: `0 0 6px ${row.color}60` }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: T.muted, marginTop: 4 }}>{row.sub}</div>
-                  </div>
-                ))}
-              </GlassCard>
-
-              <GlassCard style={{ padding: '1.5rem' }}>
-                <Label>System KPIs</Label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    { icon: '⟡', kpi: 'Retrieval',     val: 'Hybrid Search',  sub: 'Semantic 70% + BM25 30%',    c: T.cyan },
-                    { icon: '◈', kpi: 'Embeddings',     val: 'Jina AI v3',     sub: '1,024-dim · 8k token ctx',   c: '#3b82f6' },
-                    { icon: '⚡', kpi: 'Index',          val: 'IVFFlat ANN',    sub: 'lists=100 · probes=10',      c: T.amber },
-                    { icon: '✓', kpi: 'Grounding',      val: '100% Cited',     sub: 'No hallucination enforced',  c: T.green },
-                    { icon: '◎', kpi: 'Confidence',     val: 'Real-time',      sub: 'Per-response scoring',       c: T.purple },
-                    { icon: '⟳', kpi: 'Query Augment', val: 'LLM Rewrite',    sub: 'Arabic + Islamic terms',     c: T.cyan },
-                    { icon: '▸', kpi: 'Streaming',      val: 'SSE Tokens',     sub: 'Real-time generation',       c: T.green },
-                    { icon: '◆', kpi: 'Sources',        val: 'Sahih / Hasan',  sub: '1400yr authenticated texts', c: T.amber },
-                  ].map(item => (
-                    <div key={item.kpi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.55rem 0.75rem', background: T.s2, borderRadius: 8, border: `1px solid ${T.border}` }}>
-                      <span style={{ fontSize: 14, color: item.c, width: 18, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                          <span style={{ fontSize: 9, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>{item.kpi}</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: item.c }}>{item.val}</span>
-                        </div>
-                        <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>{item.sub}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </GlassCard>
-            </div>
-
             {/* Pipeline architecture */}
             <GlassCard style={{ padding: '1.5rem', marginBottom: 12 }}>
               <Label>RAG Pipeline Architecture</Label>
