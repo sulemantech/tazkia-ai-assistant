@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -7,7 +7,7 @@ export async function GET() {
 
   try {
     // head:true doesn't work reliably in Edge Runtime — use limit(0) instead
-    const { count, error } = await supabaseAdmin
+    const { count, error } = await getSupabaseAdmin()
       .from('documents')
       .select('id', { count: 'exact' })
       .limit(0);

@@ -1,11 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+let _client: SupabaseClient | null = null;
 
-// Service-role client — used server-side only. Bypasses RLS.
-// NEVER pass this key to the browser.
-export const supabaseAdmin = createClient(url, serviceKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-  db: { schema: 'public' },
-});
+// Lazily initialised so the module can be imported at build time without env vars.
+export function getSupabaseAdmin(): SupabaseClient {
+  if (!_client) {
+    _client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: 'public' } }
+    );
+  }
+  return _client;
+}

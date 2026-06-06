@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { buildRAGContext, streamAnswer, formatContext } from '@/lib/rag-chain';
 import { detectFatwas, groundingScore, computeConfidence, SCHOLAR_REFERRAL } from '@/lib/guardrails';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import type { AskRequest, SSEEvent } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         controller.close();
 
         // 3e. Fire-and-forget analytics (non-blocking)
-        void supabaseAdmin
+        void getSupabaseAdmin()
           .from('query_logs')
           .insert({
             query,

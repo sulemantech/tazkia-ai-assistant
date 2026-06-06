@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'edge';
 // Cache for 1 hour via Vercel Edge Cache (sources list rarely changes)
@@ -7,7 +7,7 @@ export const revalidate = 3600;
 export async function GET() {
   try {
     // Count documents per source_type and language in one query
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('documents')
       .select('source_type, language, metadata')
       .limit(50000); // covers full Quran + Hadith (~26K rows)

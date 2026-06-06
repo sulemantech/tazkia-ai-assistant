@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase';
+import { getSupabaseAdmin } from './supabase';
 import type { Language, SearchResult, SourceType } from './types';
 
 export interface HybridSearchOptions {
@@ -21,7 +21,7 @@ export async function hybridSearch({
   language,
   topK = 5,
 }: HybridSearchOptions): Promise<SearchResult[]> {
-  const { data, error } = await supabaseAdmin.rpc('hybrid_search', {
+  const { data, error } = await getSupabaseAdmin().rpc('hybrid_search', {
     query_text: query,
     query_embedding: queryEmbedding,
     match_count: topK * 2,
