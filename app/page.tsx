@@ -445,7 +445,7 @@ export default function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
             <MetricBlock value={M.total}   label="Documents Indexed"    sub="semantic vectors in DB"     accent={T.cyan} />
             <MetricBlock value={M.hadith}  label="Authenticated Hadiths" sub="7 major collections"       accent="#3b82f6" />
-            <MetricBlock value={M.quran}   label="Quranic Verses"        sub="114 Surahs · complete"     accent={T.green} />
+            <MetricBlock value={M.quran}   label="Quranic Verses"        sub="6,236 ayat · 114 Surahs"   accent={T.green} />
             <MetricBlock value={M.tafsir}  label="Tafsir Commentaries"   sub="Ibn Kathir · every ayah"  accent={T.purple} />
             <MetricBlock value="~5M"       label="Tokens Embedded"        sub="Islamic knowledge corpus" accent={T.amber} />
             <MetricBlock value="<500ms"    label="Search Latency"         sub="ANN + BM25 hybrid"        accent={T.cyan} />
@@ -546,7 +546,7 @@ export default function Home() {
               <GlassCard style={{ padding: '1.5rem', gridColumn: '1' }}>
                 <Label>Knowledge Base</Label>
                 {[
-                  { color: T.green,  label: 'QURAN',  title: `${M.quran} Verses`, sub: '114 Surahs · Sahih International', pct: stats ? Math.round(stats.quran.document_count / stats.total_documents * 100) : 14 },
+                  { color: T.green,  label: 'QURAN',  title: `${M.quran} Verses`, sub: '6,236 ayat · 114 Surahs · Sahih International', pct: stats ? Math.round(stats.quran.document_count / stats.total_documents * 100) : 14 },
                   { color: '#3b82f6', label: 'HADITH', title: `${M.hadith} Hadiths`, sub: 'Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta', pct: stats ? Math.round(stats.hadith.document_count / stats.total_documents * 100) : 72 },
                   { color: T.purple, label: 'TAFSIR', title: `${M.tafsir} Commentaries`, sub: 'Tafsir Ibn Kathir · Every ayah covered', pct: stats ? Math.round(stats.tafsir.document_count / stats.total_documents * 100) : 14 },
                 ].map(row => (
