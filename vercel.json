@@ -2,11 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "app/api/ask/route.ts": {
-      "maxDuration": 10,
+      "maxDuration": 30,
       "memory": 256
     },
     "app/api/search/route.ts": {
-      "maxDuration": 10,
+      "maxDuration": 30,
       "memory": 256
     },
     "app/api/sources/route.ts": {
@@ -14,7 +14,7 @@
       "memory": 128
     },
     "app/api/health/route.ts": {
-      "maxDuration": 5,
+      "maxDuration": 10,
       "memory": 128
     }
   },
@@ -45,14 +45,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL":   "@supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY":  "@supabase_service_role_key",
-    "GOOGLE_API_KEY":             "@google_api_key",
-    "JINA_API_KEY":               "@jina_api_key",
-    "GOOGLE_MODEL":               "gemini-3.5-flash",
-    "RATE_LIMIT_RPM":             "20"
-  }
+  ]
 }
