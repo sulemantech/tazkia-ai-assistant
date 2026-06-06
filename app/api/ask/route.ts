@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         controller.close();
 
         // 3e. Fire-and-forget analytics (non-blocking)
-        supabaseAdmin
+        void supabaseAdmin
           .from('query_logs')
           .insert({
             query,
@@ -117,8 +117,7 @@ export async function POST(req: NextRequest) {
             confidence,
             response_time_ms: Date.now() - startMs,
           })
-          .then(() => undefined)
-          .catch(() => undefined);
+          .then(null, () => undefined);
 
       } catch (err) {
         console.error('[/api/ask] streaming error:', err);
