@@ -5,11 +5,19 @@ import { detectSourceTypes } from './detect-source';
 import type { AskRequest, SearchResult } from './types';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const MODEL = () => process.env.GOOGLE_MODEL ?? 'gemini-3.5-flash';
+const MODEL = () => process.env.GOOGLE_MODEL ?? 'gemini-2.0-flash';
 const headers = () => ({
   'x-goog-api-key': process.env.GOOGLE_API_KEY!,
   'Content-Type': 'application/json',
 });
+
+export const PIPELINE_STEPS = [
+  { step: 1, label: 'Query Rewrite',    tech: 'Gemini AI' },
+  { step: 2, label: 'Vector Embedding', tech: 'Jina AI · 1024-dim' },
+  { step: 3, label: 'Hybrid Search',    tech: 'pgvector + FTS' },
+  { step: 4, label: 'Context Assembly', tech: 'RAG Pipeline' },
+  { step: 5, label: 'AI Response',      tech: 'Gemini 2.0 Flash' },
+] as const;
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +48,7 @@ Answer (with citations):`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function rewriteQuery(question: string): Promise<string> {
+export async function rewriteQuery(question: string): Promise<string> {
   try {
     const res = await fetch(`${BASE}/models/${MODEL()}:generateContent`, {
       method: 'POST',

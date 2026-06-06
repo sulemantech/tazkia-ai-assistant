@@ -44,6 +44,7 @@ export interface SearchRequest {
 
 // SSE event shapes sent to the client
 export type SSEEvent =
+  | { type: 'pipeline'; step: number; label: string; tech: string; status: 'active' | 'done'; duration_ms?: number }
   | { type: 'sources'; sources: Array<Omit<SearchResult, 'content'> & { excerpt: string }> }
   | { type: 'token'; token: string }
   | { type: 'disclaimer'; message: string }
