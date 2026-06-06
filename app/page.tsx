@@ -539,46 +539,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Sticky compact search (after scrolling past hero) ──────────────── */}
-      {searched && (
-        <div style={{
-          background: `${T.surface}f0`, backdropFilter: 'blur(16px)',
-          borderBottom: `1px solid ${T.border}`,
-          padding: '0.6rem 1.25rem', position: 'sticky', top: 0, zIndex: 20,
-        }}>
-          <div style={{ maxWidth: 780, margin: '0 auto' }}>
-            <form onSubmit={onSubmit}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  value={query} onChange={e => setQuery(e.target.value)}
-                  placeholder="Ask another question…" disabled={loading}
-                  style={{
-                    flex: 1, padding: '0.55rem 1rem',
-                    background: T.s2, border: `1px solid ${T.border}`,
-                    borderRadius: 8, fontSize: 14, outline: 'none', color: T.text,
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyanDim}`; }}
-                  onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
-                />
-                <button
-                  type="submit" disabled={loading || !query.trim()}
-                  style={{
-                    background: loading || !query.trim() ? T.s3 : `linear-gradient(135deg, ${T.cyan}cc, #0891b2)`,
-                    color: loading || !query.trim() ? T.muted : '#000',
-                    border: `1px solid ${loading || !query.trim() ? T.border : T.cyan}`,
-                    borderRadius: 8, padding: '0.55rem 1.2rem',
-                    fontSize: 12, fontWeight: 800, transition: 'all 0.2s',
-                    boxShadow: loading || !query.trim() ? 'none' : `0 0 12px ${T.cyan}40`,
-                  }}
-                >
-                  {loading ? '…' : mode === 'ask' ? '⟡ Ask' : '⟡ Search'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── Main content ───────────────────────────────────────────────────── */}
       <main style={{ flex: 1, maxWidth: 780, width: '100%', margin: '0 auto', padding: '1.75rem 1.25rem 4rem' }}>
