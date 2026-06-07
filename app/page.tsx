@@ -60,6 +60,31 @@ function refLabel(meta: ResultMeta): string {
   return meta.reference ?? '';
 }
 
+const HADITH_SLUG: Record<string, string> = {
+  bukhari: 'bukhari', muslim: 'muslim',
+  abudawud: 'abudawud', 'abu-dawud': 'abudawud', abu_dawud: 'abudawud',
+  tirmidhi: 'tirmidhi',
+  ibnmajah: 'ibnmajah', 'ibn-majah': 'ibnmajah', ibn_majah: 'ibnmajah',
+  nasai: 'nasai', 'an-nasai': 'nasai', an_nasai: 'nasai', annasai: 'nasai',
+  malik: 'malik', muwatta: 'malik',
+};
+
+function canonicalUrl(meta: ResultMeta): string | null {
+  const t = meta.source_type;
+  if (t === 'quran' && meta.surah_number && meta.verse_number)
+    return `https://quran.com/${meta.surah_number}/${meta.verse_number}`;
+  if (t === 'hadith' && meta.book && meta.hadith_number) {
+    const slug = HADITH_SLUG[meta.book.toLowerCase()] ?? meta.book.toLowerCase().replace(/[^a-z]/g, '');
+    return `https://sunnah.com/${slug}:${meta.hadith_number}`;
+  }
+  if (t === 'tafsir' && meta.reference) {
+    const ref = meta.reference.replace('tafsir-ik:', '');
+    const [surah, verse] = ref.split(':');
+    if (surah && verse) return `https://quran.com/${surah}/${verse}`;
+  }
+  return null;
+}
+
 // ── Responsive hook ───────────────────────────────────────────────────────────
 
 function useBreakpoint() {
@@ -128,8 +153,15 @@ function Label({ children }: { children: React.ReactNode }) {
 function SourceCard({ meta, excerpt, similarity }: {
   meta: ResultMeta; excerpt: string; similarity: number;
 }) {
-  const color = SOURCE_COLOR[meta.source_type] ?? T.muted;
-  const pct   = Math.round(similarity * 100);
+  const [expanded, setExpanded] = useState(false);
+  const color    = SOURCE_COLOR[meta.source_type] ?? T.muted;
+  const pct      = Math.round(similarity * 100);
+  const PREVIEW  = 300;
+  const isLong   = excerpt.length > PREVIEW;
+  const text     = expanded || !isLong ? excerpt : excerpt.slice(0, PREVIEW) + '…';
+  const extUrl   = canonicalUrl(meta);
+  const extLabel = meta.source_type === 'hadith' ? 'sunnah.com ↗' : 'quran.com ↗';
+
   return (
     <div style={{
       background: T.surface, borderRadius: 12,
@@ -139,6 +171,7 @@ function SourceCard({ meta, excerpt, similarity }: {
       boxShadow: `0 0 20px ${color}08`,
       animation: 'fadeUp 0.3s ease both',
     }}>
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{
           background: `${color}20`, color, border: `1px solid ${color}40`,
@@ -160,6 +193,8 @@ function SourceCard({ meta, excerpt, similarity }: {
           {pct}%
         </span>
       </div>
+
+      {/* Similarity bar */}
       <div style={{ height: 2, background: T.s3, borderRadius: 2, overflow: 'hidden' }}>
         <div style={{
           width: `${pct}%`, height: '100%',
@@ -167,9 +202,46 @@ function SourceCard({ meta, excerpt, similarity }: {
           borderRadius: 2, transition: 'width 0.8s ease', boxShadow: `0 0 8px ${color}80`,
         }} />
       </div>
+
+      {/* Text */}
       <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.75, margin: 0 }}>
-        {excerpt.length > 320 ? excerpt.slice(0, 320) + '…' : excerpt}
+        {text}
       </p>
+
+      {/* Actions */}
+      {(isLong || extUrl) && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 2 }}>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(x => !x)}
+              style={{
+                fontSize: 11, fontWeight: 700, color,
+                background: `${color}12`, border: `1px solid ${color}30`,
+                borderRadius: 20, padding: '3px 12px',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              {expanded ? '↑ Show less' : '↓ Full text'}
+            </button>
+          )}
+          {extUrl && (
+            <a
+              href={extUrl} target="_blank" rel="noopener noreferrer"
+              style={{
+                fontSize: 11, fontWeight: 700, color: T.muted,
+                background: T.s2, border: `1px solid ${T.border}`,
+                borderRadius: 20, padding: '3px 12px',
+                textDecoration: 'none', transition: 'all 0.15s',
+                marginLeft: isLong ? 0 : 'auto',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = T.cyan; e.currentTarget.style.borderColor = `${T.cyan}40`; }}
+              onMouseLeave={e => { e.currentTarget.style.color = T.muted; e.currentTarget.style.borderColor = T.border; }}
+            >
+              {extLabel}
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

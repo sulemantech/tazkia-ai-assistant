@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
             id: s.id,
             metadata: s.metadata,
             similarity: s.similarity,
-            excerpt: s.content.slice(0, 200),
+            excerpt: s.content,
           })),
         });
 
