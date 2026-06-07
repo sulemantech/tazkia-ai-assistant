@@ -60,6 +60,19 @@ function refLabel(meta: ResultMeta): string {
   return meta.reference ?? '';
 }
 
+// ── Responsive hook ───────────────────────────────────────────────────────────
+
+function useBreakpoint() {
+  const [width, setWidth] = useState(1200); // SSR-safe default (desktop)
+  useEffect(() => {
+    const update = () => setWidth(window.innerWidth);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return { isMobile: width < 640, isTablet: width >= 640 && width < 1024, isDesktop: width >= 1024 };
+}
+
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const T = {
@@ -68,7 +81,6 @@ const T = {
   s2:       '#111827',
   s3:       '#1a2238',
   border:   'rgba(255,255,255,0.07)',
-  borderHi: 'rgba(255,255,255,0.13)',
   text:     '#e2e8f0',
   muted:    '#64748b',
   dim:      '#374151',
@@ -77,7 +89,6 @@ const T = {
   green:    '#10b981',
   greenDim: 'rgba(16,185,129,0.12)',
   purple:   '#a855f7',
-  purpleDim:'rgba(168,85,247,0.12)',
   amber:    '#f59e0b',
 };
 
@@ -114,29 +125,6 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-function MetricBlock({ value, label, sub, accent }: {
-  value: string; label: string; sub: string; accent?: string;
-}) {
-  const c = accent ?? T.cyan;
-  return (
-    <div style={{
-      background: T.surface, border: `1px solid ${T.border}`,
-      borderRadius: 12, padding: '1.1rem 1.25rem',
-      borderTop: `2px solid ${c}`,
-      display: 'flex', flexDirection: 'column', gap: 4,
-    }}>
-      <div style={{
-        fontFamily: 'monospace', fontSize: 'clamp(1.3rem,3vw,1.8rem)',
-        fontWeight: 800, color: c, letterSpacing: '-0.02em', lineHeight: 1,
-      }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginTop: 4 }}>{label}</div>
-      <div style={{ fontSize: 10, color: T.muted, letterSpacing: '0.02em' }}>{sub}</div>
-    </div>
-  );
-}
-
 function SourceCard({ meta, excerpt, similarity }: {
   meta: ResultMeta; excerpt: string; similarity: number;
 }) {
@@ -145,9 +133,8 @@ function SourceCard({ meta, excerpt, similarity }: {
   return (
     <div style={{
       background: T.surface, borderRadius: 12,
-      border: `1px solid ${color}25`,
-      borderLeft: `3px solid ${color}`,
-      padding: '1.1rem 1.25rem',
+      border: `1px solid ${color}25`, borderLeft: `3px solid ${color}`,
+      padding: '1rem 1.1rem',
       display: 'flex', flexDirection: 'column', gap: 10,
       boxShadow: `0 0 20px ${color}08`,
       animation: 'fadeUp 0.3s ease both',
@@ -177,8 +164,7 @@ function SourceCard({ meta, excerpt, similarity }: {
         <div style={{
           width: `${pct}%`, height: '100%',
           background: `linear-gradient(90deg, ${color}60, ${color})`,
-          borderRadius: 2, transition: 'width 0.8s ease',
-          boxShadow: `0 0 8px ${color}80`,
+          borderRadius: 2, transition: 'width 0.8s ease', boxShadow: `0 0 8px ${color}80`,
         }} />
       </div>
       <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.75, margin: 0 }}>
@@ -188,13 +174,13 @@ function SourceCard({ meta, excerpt, similarity }: {
   );
 }
 
-function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boolean }) {
+function PipelineViz({ steps, visible, isMobile }: { steps: PipelineStep[]; visible: boolean; isMobile: boolean }) {
   if (!visible) return null;
   const totalMs = steps.reduce((a, s) => a + (s.duration_ms ?? 0), 0);
   const allDone = steps.every(s => s.status === 'done');
 
   return (
-    <GlassCard style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both' }}>
+    <GlassCard style={{ padding: isMobile ? '1rem' : '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.cyan, boxShadow: `0 0 8px ${T.cyan}` }} />
@@ -208,8 +194,7 @@ function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boole
           </span>
         )}
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 8 }}>
         {steps.map(s => {
           const isDone   = s.status === 'done';
           const isActive = s.status === 'active';
@@ -219,12 +204,12 @@ function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boole
               background: isActive ? T.cyanDim : isDone ? T.greenDim : T.s2,
               border: `1px solid ${isActive ? T.cyan : isDone ? T.green : T.border}`,
               borderTop: `2px solid ${accent}`,
-              borderRadius: 10, padding: '0.85rem 0.9rem',
+              borderRadius: 10, padding: '0.75rem 0.85rem',
               transition: 'all 0.35s ease',
               boxShadow: isActive ? `0 0 18px ${T.cyan}25` : isDone ? `0 0 12px ${T.green}15` : 'none',
               animation: isActive ? 'pulse-cyan 2s infinite' : 'none',
             }}>
-              <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: accent, marginBottom: 5, letterSpacing: '0.05em' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: accent, marginBottom: 5 }}>
                 {String(s.step).padStart(2, '0')}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isDone || isActive ? T.text : T.muted, lineHeight: 1.3 }}>
@@ -250,22 +235,24 @@ function PipelineViz({ steps, visible }: { steps: PipelineStep[]; visible: boole
 // ── Hero Search ───────────────────────────────────────────────────────────────
 
 function HeroSearch({
-  query, setQuery, mode, setMode, filters, toggleFilter, clearFilters, loading, onSubmit, inputRef,
+  query, setQuery, mode, setMode, filters, toggleFilter, clearFilters,
+  loading, onSubmit, inputRef, isMobile,
 }: {
   query: string; setQuery: (v: string) => void;
   mode: 'ask' | 'search'; setMode: (m: 'ask' | 'search') => void;
   filters: SourceType[]; toggleFilter: (t: SourceType) => void; clearFilters: () => void;
   loading: boolean; onSubmit: (e: React.FormEvent) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement>; isMobile: boolean;
 }) {
   const active = !!query.trim() && !loading;
+
   return (
     <div style={{
       position: 'relative',
       background: T.s2,
       border: `1.5px solid ${T.cyan}40`,
       borderRadius: 18,
-      padding: '0.25rem 0.25rem 0.75rem',
+      padding: isMobile ? '0.5rem 0.5rem 0.65rem' : '0.25rem 0.25rem 0.75rem',
       boxShadow: `0 0 0 1px ${T.cyan}10, 0 0 60px ${T.cyan}12, 0 8px 40px rgba(0,0,0,0.5)`,
     }}>
       {/* Top glow line */}
@@ -276,101 +263,127 @@ function HeroSearch({
       }} />
 
       <form onSubmit={onSubmit}>
-        <div style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
-          {/* Mode pill (left of input) */}
-          <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '0.75rem', gap: 6, flexShrink: 0 }}>
-            {(['ask', 'search'] as const).map(m => (
+        {isMobile ? (
+          /* ── Mobile layout: input on top, controls below ── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={mode === 'ask' ? 'Ask about Quran, Hadith or Tafsir…' : 'Search Islamic texts…'}
+              disabled={loading}
+              style={{
+                width: '100%', padding: '0.85rem 1rem',
+                background: T.s3, border: `1px solid ${T.border}`,
+                borderRadius: 12, fontSize: 15, outline: 'none', color: T.text,
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {(['ask', 'search'] as const).map(m => (
+                <button key={m} type="button" onClick={() => setMode(m)} style={{
+                  padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                  border: `1px solid ${mode === m ? T.cyan : T.border}`,
+                  background: mode === m ? T.cyanDim : 'transparent',
+                  color: mode === m ? T.cyan : T.muted,
+                  letterSpacing: '0.05em', textTransform: 'uppercase', transition: 'all 0.15s',
+                }}>
+                  {m === 'ask' ? 'Ask AI' : 'Search'}
+                </button>
+              ))}
               <button
-                key={m} type="button" onClick={() => setMode(m)}
+                type="submit" disabled={!active}
                 style={{
+                  marginLeft: 'auto',
+                  background: active ? `linear-gradient(135deg, ${T.cyan}, #0891b2)` : T.s3,
+                  color: active ? '#000' : T.muted,
+                  border: `1px solid ${active ? T.cyan : T.border}`,
+                  borderRadius: 12, padding: '7px 20px',
+                  fontSize: 13, fontWeight: 900, whiteSpace: 'nowrap',
+                  transition: 'all 0.2s',
+                  boxShadow: active ? `0 0 16px ${T.cyan}50` : 'none',
+                }}
+              >
+                {loading ? '…' : mode === 'ask' ? '⟡ Ask' : '⟡ Go'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── Desktop layout: single row ── */
+          <div style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '0.75rem', gap: 6, flexShrink: 0 }}>
+              {(['ask', 'search'] as const).map(m => (
+                <button key={m} type="button" onClick={() => setMode(m)} style={{
                   padding: '4px 12px', borderRadius: 20, fontSize: 10, fontWeight: 800,
                   border: `1px solid ${mode === m ? T.cyan : 'transparent'}`,
                   background: mode === m ? T.cyanDim : 'transparent',
                   color: mode === m ? T.cyan : T.muted,
                   letterSpacing: '0.06em', textTransform: 'uppercase',
                   transition: 'all 0.15s', whiteSpace: 'nowrap',
-                }}
-              >
-                {m === 'ask' ? 'Ask AI' : 'Search'}
-              </button>
-            ))}
+                }}>
+                  {m === 'ask' ? 'Ask AI' : 'Search'}
+                </button>
+              ))}
+            </div>
+            <div style={{ width: 1, background: T.border, margin: '0.5rem 0.5rem' }} />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={mode === 'ask'
+                ? 'Ask anything about Quran, Hadith, or Tafsir…'
+                : 'Semantic search across 44,000+ Islamic texts…'}
+              disabled={loading}
+              style={{
+                flex: 1, padding: '1rem 0.75rem',
+                background: 'transparent', border: 'none',
+                fontSize: 16, outline: 'none', color: T.text,
+              }}
+            />
+            <button
+              type="submit" disabled={!active}
+              style={{
+                margin: '0.4rem',
+                background: active ? `linear-gradient(135deg, ${T.cyan}, #0891b2)` : T.s3,
+                color: active ? '#000' : T.muted,
+                border: `1px solid ${active ? T.cyan : T.border}`,
+                borderRadius: 12, padding: '0 1.5rem',
+                fontSize: 13, fontWeight: 900,
+                letterSpacing: '0.05em', whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+                boxShadow: active ? `0 0 20px ${T.cyan}50` : 'none',
+                minWidth: 100,
+              }}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ animation: 'blink 1s infinite', color: T.cyan }}>◉</span> Running
+                </span>
+              ) : mode === 'ask' ? '⟡ Ask AI' : '⟡ Search'}
+            </button>
           </div>
-
-          {/* Divider */}
-          <div style={{ width: 1, background: T.border, margin: '0.5rem 0.5rem' }} />
-
-          {/* Input */}
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={mode === 'ask'
-              ? 'Ask anything about Quran, Hadith, or Tafsir…'
-              : 'Semantic search across 44,000+ Islamic texts…'}
-            disabled={loading}
-            style={{
-              flex: 1, padding: '1rem 0.75rem',
-              background: 'transparent', border: 'none',
-              fontSize: 16, outline: 'none',
-              color: T.text,
-            }}
-          />
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={!active}
-            style={{
-              margin: '0.4rem',
-              background: active
-                ? `linear-gradient(135deg, ${T.cyan}, #0891b2)`
-                : T.s3,
-              color: active ? '#000' : T.muted,
-              border: `1px solid ${active ? T.cyan : T.border}`,
-              borderRadius: 12, padding: '0 1.5rem',
-              fontSize: 13, fontWeight: 900,
-              letterSpacing: '0.05em', whiteSpace: 'nowrap',
-              transition: 'all 0.2s',
-              boxShadow: active ? `0 0 20px ${T.cyan}50` : 'none',
-              minWidth: 100,
-            }}
-          >
-            {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ animation: 'blink 1s infinite', color: T.cyan }}>◉</span> Running
-              </span>
-            ) : mode === 'ask' ? '⟡ Ask AI' : '⟡ Search'}
-          </button>
-        </div>
+        )}
       </form>
 
-      {/* Source filters row */}
-      <div style={{ display: 'flex', gap: 6, paddingLeft: '1rem', paddingTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontSize: 10, color: T.muted, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginRight: 4 }}>
+      {/* Source filters */}
+      <div style={{ display: 'flex', gap: 6, paddingLeft: isMobile ? '0.25rem' : '1rem', paddingTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 10, color: T.muted, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginRight: 2 }}>
           Filter:
         </span>
         {(['quran', 'hadith', 'tafsir'] as SourceType[]).map(t => (
-          <button
-            key={t} type="button" onClick={() => toggleFilter(t)}
-            style={{
-              padding: '3px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-              border: `1px solid ${filters.includes(t) ? SOURCE_COLOR[t] : T.border}`,
-              background: filters.includes(t) ? `${SOURCE_COLOR[t]}20` : 'transparent',
-              color: filters.includes(t) ? SOURCE_COLOR[t] : T.muted,
-              letterSpacing: '0.05em', textTransform: 'uppercase',
-              transition: 'all 0.15s',
-            }}
-          >
+          <button key={t} type="button" onClick={() => toggleFilter(t)} style={{
+            padding: '3px 12px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+            border: `1px solid ${filters.includes(t) ? SOURCE_COLOR[t] : T.border}`,
+            background: filters.includes(t) ? `${SOURCE_COLOR[t]}20` : 'transparent',
+            color: filters.includes(t) ? SOURCE_COLOR[t] : T.muted,
+            letterSpacing: '0.05em', textTransform: 'uppercase', transition: 'all 0.15s',
+          }}>
             {SOURCE_LABEL[t]}
           </button>
         ))}
         {filters.length > 0 && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            style={{ fontSize: 10, color: T.muted, background: 'none', border: 'none', padding: '3px 8px', cursor: 'pointer' }}
-          >
-            — all sources
+          <button type="button" onClick={clearFilters} style={{ fontSize: 10, color: T.muted, background: 'none', border: 'none', padding: '3px 8px', cursor: 'pointer' }}>
+            — all
           </button>
         )}
       </div>
@@ -381,6 +394,10 @@ function HeroSearch({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
+  const { isMobile, isTablet } = useBreakpoint();
+  const px = isMobile ? '1rem' : '1.25rem';
+  const maxW = 780;
+
   const [query, setQuery]           = useState('');
   const [filters, setFilters]       = useState<SourceType[]>([]);
   const [mode, setMode]             = useState<'ask' | 'search'>('ask');
@@ -418,10 +435,8 @@ export default function Home() {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     setLoading(true); setSearched(true); reset();
-
     const body: Record<string, unknown> = { query: q.trim() };
     if (filters.length) body.source_types = filters;
-
     try {
       if (mode === 'search') {
         body.page_size = 9;
@@ -476,12 +491,10 @@ export default function Home() {
   const confPct   = confidence !== null ? Math.round(confidence * 100) : null;
   const confColor = confPct === null ? T.muted : confPct >= 75 ? T.green : confPct >= 50 ? T.amber : '#ef4444';
 
-  const M = {
-    total:  stats ? stats.total_documents.toLocaleString() : '44,193+',
-    hadith: stats ? stats.hadith.document_count.toLocaleString() : '31,757',
-    quran:  stats ? stats.quran.document_count.toLocaleString() : '6,236',
-    tafsir: stats ? stats.tafsir.document_count.toLocaleString() : '6,200',
-  };
+  // Pipeline grid: 2 cols mobile, 3 cols tablet, 5 cols desktop
+  const pipelineCols = isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)';
+  // Stats grid: 2 cols mobile, 4 cols tablet, 7 cols desktop
+  const statsCols = isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(4, 1fr)' : 'repeat(7, 1fr)';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: T.bg }}>
@@ -489,7 +502,7 @@ export default function Home() {
       {/* ── Hero header ────────────────────────────────────────────────────── */}
       <header style={{
         position: 'relative', overflow: 'hidden',
-        padding: '3rem 1.25rem 2.5rem',
+        padding: isMobile ? '1.75rem 1rem 1.5rem' : '3rem 1.25rem 2.5rem',
         background: `radial-gradient(ellipse 90% 70% at 50% 0%, rgba(34,211,238,0.07) 0%, transparent 65%), ${T.bg}`,
         borderBottom: `1px solid ${T.border}`,
       }}>
@@ -500,28 +513,31 @@ export default function Home() {
           backgroundSize: '40px 40px',
         }} />
 
-        <div style={{ position: 'relative', maxWidth: 780, margin: '0 auto' }}>
+        <div style={{ position: 'relative', maxWidth: maxW, margin: '0 auto' }}>
 
           {/* Brand */}
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: isMobile ? '1.25rem' : '2rem' }}>
             <div style={{
               display: 'inline-block',
               background: `linear-gradient(135deg, ${T.cyan}, #fff 45%, ${T.purple})`,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              fontSize: 'clamp(2.2rem, 7vw, 3.5rem)', fontWeight: 900,
-              letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: 10,
+              fontSize: isMobile ? '2rem' : 'clamp(2.2rem, 7vw, 3.5rem)',
+              fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: 8,
             }}>
               TAZKIA AI
             </div>
-            <div style={{ fontSize: 13, color: '#94a3b8', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>
+            <div style={{ fontSize: isMobile ? 11 : 13, color: '#94a3b8', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 12 }}>
               Islamic Knowledge Intelligence · RAG System
             </div>
             <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-              {['44,193+ Documents', 'Hybrid Vector Search', 'Real-time Streaming', 'Zero Hallucination'].map(tag => (
+              {(isMobile
+                ? ['44,193+ Docs', 'Hybrid Search', 'Zero Hallucination']
+                : ['44,193+ Documents', 'Hybrid Vector Search', 'Real-time Streaming', 'Zero Hallucination']
+              ).map(tag => (
                 <span key={tag} style={{
                   fontSize: 10, fontWeight: 700, color: T.muted,
                   background: T.surface, border: `1px solid ${T.border}`,
-                  borderRadius: 20, padding: '3px 12px', letterSpacing: '0.04em',
+                  borderRadius: 20, padding: '3px 10px',
                 }}>
                   {tag}
                 </span>
@@ -529,30 +545,34 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── Hero Search ── */}
+          {/* Hero Search */}
           <HeroSearch
             query={query} setQuery={setQuery}
             mode={mode} setMode={setMode}
             filters={filters} toggleFilter={toggleFilter} clearFilters={() => setFilters([])}
             loading={loading} onSubmit={onSubmit} inputRef={inputRef}
+            isMobile={isMobile}
           />
 
-          {/* ── Quick suggestions (only on landing) ── */}
+          {/* Quick suggestions */}
           {!searched && (
-            <div style={{ marginTop: '1rem' }}>
+            <div style={{ marginTop: isMobile ? '0.85rem' : '1rem' }}>
               <div style={{ fontSize: 10, color: T.muted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, textAlign: 'center' }}>
                 Try an example
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                {SUGGESTIONS.map(s => (
+                {(isMobile ? SUGGESTIONS.slice(0, 3) : SUGGESTIONS).map(s => (
                   <button
                     key={s}
                     onClick={() => { setQuery(s); submit(s); }}
                     style={{
                       background: T.surface, border: `1px solid ${T.border}`,
-                      borderRadius: 20, padding: '5px 14px',
-                      fontSize: 12, color: '#94a3b8',
-                      transition: 'all 0.2s', whiteSpace: 'nowrap',
+                      borderRadius: 20, padding: isMobile ? '5px 12px' : '5px 14px',
+                      fontSize: isMobile ? 11 : 12, color: '#94a3b8',
+                      transition: 'all 0.2s',
+                      maxWidth: isMobile ? '90vw' : 'none',
+                      textAlign: 'left', whiteSpace: isMobile ? 'normal' : 'nowrap',
+                      lineHeight: 1.4,
                     }}
                     onMouseEnter={e => {
                       e.currentTarget.style.borderColor = T.cyan;
@@ -574,18 +594,15 @@ export default function Home() {
         </div>
       </header>
 
-
       {/* ── Main content ───────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, maxWidth: 780, width: '100%', margin: '0 auto', padding: '1.75rem 1.25rem 4rem' }}>
+      <main style={{ flex: 1, maxWidth: maxW, width: '100%', margin: '0 auto', padding: `${isMobile ? '1.25rem' : '1.75rem'} ${px} 4rem` }}>
 
-        {/* ── Landing dashboard (before any query) ──────────────────────── */}
+        {/* ── Pipeline architecture (landing) ───────────────────────────── */}
         {!searched && (
           <div style={{ animation: 'fadeUp 0.4s ease both' }}>
-
-            {/* Pipeline architecture */}
-            <GlassCard style={{ padding: '1.5rem', marginBottom: 12 }}>
+            <GlassCard style={{ padding: isMobile ? '1rem' : '1.5rem', marginBottom: 0 }}>
               <Label>RAG Pipeline Architecture</Label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: pipelineCols, gap: 8 }}>
                 {[
                   { n: '01', label: 'Query Rewrite', tech: 'Gemini AI',  desc: 'Enriched with Islamic terms' },
                   { n: '02', label: 'Vector Embed',  tech: 'Jina AI',    desc: '1,024-dim representation'   },
@@ -596,32 +613,29 @@ export default function Home() {
                   <div key={s.n} style={{
                     background: T.s2, border: `1px solid ${T.border}`,
                     borderTop: `2px solid ${T.cyan}`,
-                    borderRadius: 10, padding: '0.85rem 0.9rem',
+                    borderRadius: 10, padding: '0.8rem 0.9rem',
                   }}>
                     <div style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 800, color: T.cyan, marginBottom: 5 }}>{s.n}</div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: T.text, lineHeight: 1.3 }}>{s.label}</div>
                     <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{s.tech}</div>
-                    <div style={{ fontSize: 10, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>{s.desc}</div>
+                    {!isMobile && <div style={{ fontSize: 10, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>{s.desc}</div>}
                   </div>
                 ))}
               </div>
             </GlassCard>
-
           </div>
         )}
 
-        {/* ── Pipeline tracker ───────────────────────────────────────────── */}
-        <PipelineViz steps={pipeline} visible={showPipeline} />
+        {/* ── Live pipeline tracker (during query) ─────────────────────── */}
+        <PipelineViz steps={pipeline} visible={showPipeline} isMobile={isMobile} />
 
         {/* ── Answer ─────────────────────────────────────────────────────── */}
         {mode === 'ask' && searched && (
-          <GlassCard glow={T.green} style={{ padding: '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both', borderLeft: `3px solid ${T.green}` }}>
+          <GlassCard glow={T.green} style={{ padding: isMobile ? '1rem' : '1.25rem 1.5rem', marginBottom: '1.25rem', animation: 'fadeUp 0.3s ease both', borderLeft: `3px solid ${T.green}` }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 8px ${T.green}` }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  AI Answer
-                </span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>AI Answer</span>
                 {loading && (
                   <span style={{ fontSize: 9, color: T.cyan, background: T.cyanDim, border: `1px solid ${T.cyan}30`, borderRadius: 20, padding: '1px 8px', fontWeight: 700 }}>
                     STREAMING
@@ -639,7 +653,7 @@ export default function Home() {
               )}
             </div>
             {answer ? (
-              <p style={{ fontSize: 14, lineHeight: 1.85, color: '#cbd5e1', whiteSpace: 'pre-wrap', margin: 0 }}>
+              <p style={{ fontSize: isMobile ? 13 : 14, lineHeight: 1.85, color: '#cbd5e1', whiteSpace: 'pre-wrap', margin: 0 }}>
                 {answer}
                 {loading && <span style={{ animation: 'blink 1s infinite', color: T.cyan, marginLeft: 1 }}>▌</span>}
               </p>
@@ -685,49 +699,47 @@ export default function Home() {
         )}
       </main>
 
-      {/* ── Stats strip above footer ────────────────────────────────────────── */}
+      {/* ── Stats strip ────────────────────────────────────────────────────── */}
       <div style={{
         borderTop: `1px solid ${T.border}`,
         background: `radial-gradient(ellipse 80% 100% at 50% 100%, rgba(34,211,238,0.05) 0%, transparent 70%), ${T.s2}`,
-        padding: '2.5rem 1.25rem',
+        padding: isMobile ? '1.75rem 1rem' : '2.5rem 1.25rem',
       }}>
-        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+        <div style={{ maxWidth: maxW, margin: '0 auto' }}>
           <div style={{
             fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase',
-            letterSpacing: '0.15em', textAlign: 'center', marginBottom: '1.75rem',
+            letterSpacing: '0.15em', textAlign: 'center', marginBottom: isMobile ? '1.25rem' : '1.75rem',
             display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center',
           }}>
-            <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${T.border})`, display: 'inline-block' }} />
+            <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${T.border})` }} />
             Knowledge Base at a Glance
-            <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${T.border}, transparent)`, display: 'inline-block' }} />
+            <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${T.border}, transparent)` }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: statsCols, gap: isMobile ? 10 : 12 }}>
             {[
               { value: '44,193+', label: 'Documents',     sub: 'total indexed',       accent: T.cyan },
               { value: '31,757',  label: 'Hadiths',        sub: '7 major collections', accent: '#3b82f6' },
-              { value: '6,236',   label: 'Quranic Verses', sub: '114 Surahs · complete', accent: T.green },
+              { value: '6,236',   label: 'Quranic Verses', sub: '114 Surahs',          accent: T.green },
               { value: '~5M',     label: 'Tokens',         sub: 'knowledge corpus',    accent: T.amber },
               { value: '1,024',   label: 'Dimensions',     sub: 'Jina AI embedding',   accent: T.cyan },
               { value: '<500ms',  label: 'Latency',        sub: 'hybrid search',       accent: T.green },
               { value: '100%',    label: 'Cited',          sub: 'zero hallucination',  accent: T.green },
             ].map(m => (
               <div key={m.label} style={{
-                textAlign: 'center',
-                padding: '1rem 0.5rem',
-                borderTop: `2px solid ${m.accent}30`,
-                borderBottom: `1px solid ${T.border}`,
+                textAlign: 'center', padding: isMobile ? '0.85rem 0.25rem' : '1rem 0.5rem',
+                borderTop: `2px solid ${m.accent}30`, borderBottom: `1px solid ${T.border}`,
               }}>
                 <div style={{
                   fontFamily: 'monospace',
-                  fontSize: 'clamp(1.2rem, 3vw, 1.75rem)',
+                  fontSize: isMobile ? 'clamp(1.1rem, 5vw, 1.4rem)' : 'clamp(1.2rem, 3vw, 1.75rem)',
                   fontWeight: 900, color: m.accent,
                   letterSpacing: '-0.02em', lineHeight: 1,
                   textShadow: `0 0 20px ${m.accent}50`,
                 }}>
                   {m.value}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 6 }}>{m.label}</div>
-                <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{m.sub}</div>
+                <div style={{ fontSize: isMobile ? 10 : 11, fontWeight: 700, color: T.text, marginTop: 6 }}>{m.label}</div>
+                {!isMobile && <div style={{ fontSize: 10, color: T.muted, marginTop: 3 }}>{m.sub}</div>}
               </div>
             ))}
           </div>
@@ -735,10 +747,12 @@ export default function Home() {
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: `1px solid ${T.border}`, padding: '1.1rem 1.25rem', background: T.surface }}>
-        <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ fontSize: 11, color: T.muted, fontFamily: 'monospace' }}>
-            TAZKIA AI · Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta · Tafsir Ibn Kathir
+      <footer style={{ borderTop: `1px solid ${T.border}`, padding: `1rem ${px}`, background: T.surface }}>
+        <div style={{ maxWidth: maxW, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ fontSize: isMobile ? 10 : 11, color: T.muted, fontFamily: 'monospace', lineHeight: 1.6 }}>
+            {isMobile
+              ? 'TAZKIA AI · Bukhari · Muslim · Ibn Kathir'
+              : 'TAZKIA AI · Bukhari · Muslim · Abu Dawud · Tirmidhi · Ibn Majah · Nasai · Muwatta · Tafsir Ibn Kathir'}
           </div>
           <a href="/api/health" style={{ fontSize: 11, color: T.cyan, textDecoration: 'none', fontWeight: 700, fontFamily: 'monospace' }}>
             API STATUS →

@@ -12,7 +12,14 @@
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/api/health\" -TimeoutSec 20 -UseBasicParsing 2>&1)",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3001/api/search\" -Method POST -Body '{\"query\":\"Patience\",\"page_size\":4}' -ContentType \"application/json\" -TimeoutSec 20 -UseBasicParsing 2>&1 | Select-Object StatusCode, @{N='Content';E={$_.Content.Substring\\(0, [Math]::Min\\(500, $_.Content.Length\\)\\)}})",
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/health\" -TimeoutSec 30 -UseBasicParsing)",
-      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/health\" -TimeoutSec 40 -UseBasicParsing)"
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000/api/health\" -TimeoutSec 40 -UseBasicParsing)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git filter-branch *)",
+      "Bash(git stash *)",
+      "Bash(git push *)",
+      "Bash(npx next *)"
     ]
   }
 }
