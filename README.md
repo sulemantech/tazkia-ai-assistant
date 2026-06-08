@@ -20,7 +20,7 @@ We are building the **definitive Islamic knowledge retrieval engine** — starti
 
 1. [What's Indexed Today](#1-whats-indexed-today)
 2. [Knowledge Base Roadmap](#2-knowledge-base-roadmap)
-3. [Architecture Overview](#3-architecture-overview)
+3. [Architecture Overview](#3-architecture-overview) — System Context · Query Sequence · Ingestion Flow · DB Schema · SSE Timeline · Module Map · Security
 4. [Tech Stack](#4-tech-stack)
 5. [RAG Pipeline — How It Works](#5-rag-pipeline--how-it-works)
 6. [Guardrails System](#6-guardrails-system)
@@ -121,94 +121,412 @@ The four major schools of Islamic law — all authenticated, covering every majo
 
 ## 3. Architecture Overview
 
+### 3.1 — System Context
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║                     TAZKIA AI PLATFORM                          ║
+║          Serverless · Streaming · 44,193+ Documents             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+  ┌───────────────────────────────────────────────────────────┐
+  │  CLIENTS                                                  │
+  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐  │
+  │  │  Web Browser │  │  Flutter App │  │  API Consumer  │  │
+  │  │  (Next.js)   │  │  (Tazkia365) │  │  (3rd party)   │  │
+  │  └──────┬───────┘  └──────┬───────┘  └───────┬────────┘  │
+  └─────────╪─────────────────╪──────────────────╪───────────┘
+            │                 │                  │
+            └─────────────────┴──────────────────┘
+                              │  HTTPS
+                              ▼
+  ┌───────────────────────────────────────────────────────────┐
+  │  VERCEL EDGE NETWORK                                      │
+  │                                                           │
+  │  middleware.ts  (runs at the edge, every region)          │
+  │  ├─ IP sliding window → 20 req / 60s per IP              │
+  │  ├─ CORS headers                                          │
+  │  └─ passes to Node.js runtime ↓                          │
+  │                                                           │
+  │  Next.js 14 App Router  (Node.js runtime, maxDuration=30s)│
+  │  ├─ POST /api/ask      → SSE stream                       │
+  │  ├─ POST /api/search   → JSON (paginated)                 │
+  │  ├─ GET  /api/sources  → JSON (cached 1h at edge)         │
+  │  └─ GET  /api/health   → JSON liveness probe              │
+  └──────────┬──────────────────┬──────────────────┬─────────┘
+             │                  │                  │
+             ▼                  ▼                  ▼
+  ┌──────────────┐   ┌──────────────────┐  ┌──────────────┐
+  │   JINA AI    │   │  SUPABASE        │  │  GOOGLE AI   │
+  │              │   │  PostgreSQL      │  │              │
+  │  v3 embed    │   │  + pgvector      │  │  Gemini 2.0  │
+  │  1,024-dim   │   │  44,193+ docs    │  │  Flash       │
+  │  8k context  │   │  hybrid_search() │  │  streaming   │
+  └──────────────┘   └──────────────────┘  └──────────────┘
+
+  LOCAL MACHINE ONLY  (never runs on Vercel)
+  ┌───────────────────────────────────────────────────────────┐
+  │  scripts/  — one-time ingestion, run by developer         │
+  │  ├─ fetch-quran.ts    → QuranCDN free API                 │
+  │  ├─ fetch-hadith.ts   → fawazahmed0 CDN                   │
+  │  ├─ fetch-tafsir.ts   → IslamicStudies.info API           │
+  │  └─ ingest.ts         → embed + bulk upload to Supabase   │
+  └───────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 3.2 — Query Lifecycle Sequence  (`POST /api/ask`)
+
+This is the complete sequence for every AI answer request, from the moment the user presses Ask to the last token arriving in the browser.
+
+```
+CLIENT                VERCEL EDGE        NODE.JS ROUTE       JINA AI    SUPABASE    GEMINI
+  │                       │                    │                 │           │          │
+  │── POST /api/ask ──────►│                    │                 │           │          │
+  │   { query, top_k }    │                    │                 │           │          │
+  │                       │─ rate limit check ─►                 │           │          │
+  │                       │  (20 req/min/IP)   │                 │           │          │
+  │◄─ 429 Too Many ───────│  [if exceeded]     │                 │           │          │
+  │                       │                    │                 │           │          │
+  │                       │── pass ────────────►                 │           │          │
+  │◄══ SSE connection open ════════════════════│                 │           │          │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── STEP 1: Query Rewrite (~200ms) ── ── ── ── ── ── ── ── ── ──   │
+  │◄─ {pipeline:1 active} ─────────────────────│                 │           │          │
+  │                       │                    │──rewriteQuery()─────────────────────────►
+  │                       │                    │                 │           │   rewrite │
+  │                       │                    │◄─ "sabr, tawakkul, patience in Quran" ──│
+  │◄─ {pipeline:1 done}  ──────────────────────│                 │           │          │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── STEP 2: Dual Embedding (~300ms) ── ── ── ── ── ── ── ── ── ──  │
+  │◄─ {pipeline:2 active} ─────────────────────│                 │           │          │
+  │                       │                    │── embedQuery(original) ─────►          │
+  │                       │                    │── embedQuery(rewritten) ────►          │
+  │                       │                    │◄── [vec_orig 1024-dim] ──────│          │
+  │                       │                    │◄── [vec_rewr 1024-dim] ──────│          │
+  │                       │                    │  avg = (vec_orig + vec_rewr) / 2        │
+  │◄─ {pipeline:2 done}  ──────────────────────│                 │           │          │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── STEP 3: Hybrid Search (~100ms) ── ── ── ── ── ── ── ── ── ──   │
+  │◄─ {pipeline:3 active} ─────────────────────│                 │           │          │
+  │                       │                    │──── hybrid_search(avg_vec, query_text) ►│
+  │                       │                    │     cosine×0.70 + bm25×0.30 │          │
+  │                       │                    │◄─── [doc1..doc5, similarity] ───────────│
+  │◄─ {pipeline:3 done}  ──────────────────────│                 │           │          │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── STEP 4: RAG Assembly + Gate 1 ── ── ── ── ── ── ── ── ── ──    │
+  │◄─ {pipeline:4 active} ─────────────────────│                 │           │          │
+  │                       │                    │  checkSources() — Gate 1    │          │
+  │                       │                    │  ├─ sources.length ≥ 1      │          │
+  │                       │                    │  └─ top similarity > 0.28   │          │
+  │◄─ {pipeline:4 done}  ──────────────────────│                 │           │          │
+  │◄─ {sources: [...]}  ───────────────────────│  sources event before any tokens       │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── STEP 5: LLM Streaming (~2–8s) ── ── ── ── ── ── ── ── ── ──   │
+  │◄─ {pipeline:5 active} ─────────────────────│                 │           │          │
+  │                       │                    │── streamAnswer(query, ctx) ───────────►│
+  │◄─ {token:"The "}  ─────────────────────────│◄── token ────────────────────────────│
+  │◄─ {token:"Quran "} ────────────────────────│◄── token ────────────────────────────│
+  │◄─ {token:"states"} ────────────────────────│   ... N tokens ...          │         │
+  │◄─ {pipeline:5 done}  ──────────────────────│                 │           │          │
+  │                       │                    │                 │           │          │
+  │  ── ── ── ── ── ── Post-generation Guardrails ── ── ── ── ── ── ── ── ── ── ──    │
+  │◄─ {disclaimer}  ───────────────────────────│  detectFatwas() Gate 2 (if triggered)  │
+  │◄─ {done: confidence} ──────────────────────│  groundingScore() Gate 3               │
+  │◄─ [DONE] ──────────────────────────────────│                 │           │          │
+  │                       │                    │                 │           │          │
+  │                       │                    │── query_logs.insert() ──────►          │
+  │                       │                    │   (fire-and-forget, async)  │          │
+```
+
+**Error paths:**
+
+```
+Gate 1 FAIL (no sources / low confidence):
+  pipeline:4 done → {error: "No relevant sources…"} → [DONE]
+  LLM is never called — no hallucination risk.
+
+Rate limit exceeded:
+  Edge middleware → 429 JSON → connection closed immediately.
+
+Gemini timeout / error:
+  {error: "An error occurred…"} → [DONE]
+```
+
+---
+
+### 3.3 — Ingestion Pipeline Flow
+
+Run once per source on a local machine. Never touches Vercel.
+
 ```
   ┌─────────────────────────────────────────────────────────────────┐
-  │                    TAZKIA AI PLATFORM                           │
-  │      Serverless · Streaming · 44,193+ Documents · <500ms        │
+  │  npm run ingest[:quran|:hadith|:tafsir]                         │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+    │ fetch-quran  │  │ fetch-hadith │  │ fetch-tafsir │
+    │              │  │              │  │              │
+    │ QuranCDN API │  │ fawazahmed0  │  │ IslamicStudies│
+    │ 6,236 ayahs  │  │ 7 books CDN  │  │ .info API    │
+    │              │  │              │  │              │
+    │ 1 doc        │  │ 1 doc        │  │ 1 doc        │
+    │ per verse    │  │ per hadith   │  │ per verse    │
+    └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+           └─────────────────┴─────────────────┘
+                              │
+                              ▼ ParsedDocument[]
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  chunkText()                                                    │
+  │                                                                 │
+  │  IF doc.content.length > 800 words:                             │
+  │    → split at 600-word boundaries, 80-word overlap             │
+  │  ELSE:                                                          │
+  │    → keep as single document (hadiths, short verses)           │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │ chunked Document[]
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  embedDocuments()   [Jina AI v3]                                │
+  │                                                                 │
+  │  batch of 100 texts per API call                               │
+  │  → POST https://api.jina.ai/v1/embeddings                      │
+  │  → model: jina-embeddings-v3                                   │
+  │  → task: retrieval.passage                                     │
+  │  → dimensions: 1024                                            │
+  │  ← float32[1024] per document                                  │
+  │                                                                 │
+  │  retry on 429: exponential backoff (1s, 2s, 4s)               │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │ { content, embedding, metadata }[]
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  supabase.insert()  [Supabase service_role]                     │
+  │                                                                 │
+  │  batch of 200 rows per INSERT                                  │
+  │  upsert: false (insert only — dedup by content_hash)           │
+  │  table: documents                                              │
+  └───────────────────────────┬─────────────────────────────────────┘
+                              │
+                              ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  REINDEX INDEX documents_embedding_idx                          │
+  │                                                                 │
+  │  IVFFlat index must be rebuilt after bulk load.                │
+  │  Run once in Supabase SQL Editor after each ingestion batch.   │
   └─────────────────────────────────────────────────────────────────┘
-
-  Web App / Mobile App / API Client
-       │
-       │  POST /api/ask      → SSE stream (tokens + sources + confidence)
-       │  POST /api/search   → JSON (paginated semantic results)
-       │  GET  /api/sources  → JSON (source catalog, cached 1h)
-       │  GET  /api/health   → JSON (liveness probe)
-       │
-       ▼
-  ╔═══════════════════════════════════════════════════════╗
-  ║              VERCEL  (Serverless Edge)                ║
-  ║                                                       ║
-  ║  ┌─────────────────────────────────────────────────┐  ║
-  ║  │  Edge Middleware  (middleware.ts)               │  ║
-  ║  │  • IP-based rate limiting (20 req/min)         │  ║
-  ║  │  • CORS headers                                │  ║
-  ║  └───────────────────┬─────────────────────────────┘  ║
-  ║                      │                                ║
-  ║  ┌───────────────────▼─────────────────────────────┐  ║
-  ║  │  Next.js 14 API Routes  (Node.js Runtime)      │  ║
-  ║  │                                                 │  ║
-  ║  │  POST /api/ask                                  │  ║
-  ║  │   01 ─ Validate input (≤500 chars)             │  ║
-  ║  │   02 ─ Rewrite query       → Gemini AI         │  ║──► Google AI
-  ║  │   03 ─ Dual embed (×2 avg) → Jina AI v3        │  ║──► Jina AI
-  ║  │   04 ─ hybrid_search()     → Supabase RPC      │  ║
-  ║  │   05 ─ checkSources()      [Gate 1]            │  ║
-  ║  │   06 ─ streamAnswer()      → Gemini stream     │  ║──► Gemini 2.0 Flash
-  ║  │   07 ─ detectFatwas()      [Gate 2]            │  ║
-  ║  │   08 ─ groundingScore()    [Gate 3]            │  ║
-  ║  │                                                 │  ║
-  ║  └───────────────────┬─────────────────────────────┘  ║
-  ╚══════════════════════╪═══════════════════════════════╝
-                         │
-                         ▼
-  ╔═══════════════════════════════════════════════════════╗
-  ║          SUPABASE  (PostgreSQL + pgvector)             ║
-  ║                                                       ║
-  ║  ┌─────────────────────────────────────────────────┐  ║
-  ║  │  documents                                      │  ║
-  ║  │  ├─ id            UUID (PK)                     │  ║
-  ║  │  ├─ content       TEXT                          │  ║
-  ║  │  ├─ embedding     vector(1024)  ← pgvector      │  ║
-  ║  │  ├─ metadata      JSONB  ← surah/hadith/fiqh    │  ║
-  ║  │  ├─ source_type   TEXT   ← quran/hadith/tafsir  │  ║
-  ║  │  └─ language      TEXT   ← en/ar/ur             │  ║
-  ║  │                                                 │  ║
-  ║  │  Indexes:                                       │  ║
-  ║  │  • IVFFlat(embedding) lists=100 → ANN search    │  ║
-  ║  │  • GIN(to_tsvector)          → full-text BM25   │  ║
-  ║  │  • GIN(metadata)             → filter by book   │  ║
-  ║  └─────────────────────────────────────────────────┘  ║
-  ║                                                       ║
-  ║  hybrid_search() RPC                                  ║
-  ║  = cosine_similarity × 0.70 + bm25_rank × 0.30       ║
-  ╚═══════════════════════════════════════════════════════╝
-
-  LOCAL MACHINE ONLY  (ingestion — never runs on Vercel)
-  ┌─────────────────────────────────────────────────────┐
-  │  scripts/ingest.ts                                  │
-  │   ├─ fetchQuranDocuments()  → QuranCDN free API     │
-  │   ├─ fetchHadithDocuments() → fawazahmed0 CDN       │
-  │   ├─ fetchTafsirDocuments() → IslamicStudies API    │
-  │   ├─ chunkText()            → 600-word chunks       │
-  │   ├─ embedDocuments()       → Jina AI batch embed   │
-  │   └─ supabase.insert()      → bulk upload           │
-  └─────────────────────────────────────────────────────┘
 ```
 
-### Data Flow
+---
+
+### 3.4 — Database Architecture
 
 ```
-User query
-  → Edge Middleware (rate limit 20 RPM per IP)
-    → Validate input (≤500 chars)
-      → Rewrite query with Islamic terminology   ~200ms  [Gemini AI]
-        → Embed original + rewritten, average    ~300ms  [Jina AI v3]
-          → hybrid_search() RPC                  ~100ms  [Supabase]
-            → Gate 1: source quality check
-              → Stream AI answer                 ~2–5s   [Gemini 2.0 Flash]
-                → Gate 2: fatwa detection
-                  → Gate 3: grounding score
-                    → SSE [DONE] → client
+╔═══════════════════════════════════════════════════════════════════╗
+║  TABLE: documents                                                 ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  id           UUID          PRIMARY KEY  DEFAULT gen_random_uuid()║
+║  content      TEXT          NOT NULL   ← full source text         ║
+║  embedding    vector(1024)  NOT NULL   ← Jina AI v3 float32       ║
+║  metadata     JSONB         NOT NULL   ← source-specific fields   ║
+║  source_type  TEXT          NOT NULL   ← quran/hadith/tafsir/fiqh ║
+║  language     TEXT          DEFAULT 'en'                          ║
+║  created_at   TIMESTAMPTZ   DEFAULT now()                         ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  INDEXES                                                          ║
+║                                                                   ║
+║  documents_embedding_idx                                          ║
+║    USING ivfflat (embedding vector_cosine_ops)                    ║
+║    WITH (lists = 100)                                             ║
+║    → approximate nearest-neighbour search                         ║
+║    → probes = 10 at query time (set via SET ivfflat.probes = 10)  ║
+║                                                                   ║
+║  documents_fts_idx                                                ║
+║    USING gin (to_tsvector('english', content))                    ║
+║    → PostgreSQL full-text search, BM25 ranking                    ║
+║                                                                   ║
+║  documents_metadata_idx                                           ║
+║    USING gin (metadata)                                           ║
+║    → fast filter by source_type, book, surah_number, etc.         ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  METADATA SHAPES                                                  ║
+║                                                                   ║
+║  quran:   { surah_number, surah_name, verse_number,               ║
+║             juz_number, page_number }                             ║
+║                                                                   ║
+║  hadith:  { book, hadith_number, chapter, grade,                  ║
+║             narrator_chain }                                      ║
+║                                                                   ║
+║  tafsir:  { reference, tafsir_name, author,                       ║
+║             surah_number, verse_number }                          ║
+║                                                                   ║
+║  fiqh:    { book_name, author, school, chapter,                   ║
+║             section, reference }                                  ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  TABLE: query_logs                                                ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  id               UUID         PRIMARY KEY                        ║
+║  query            TEXT         ← user's original query            ║
+║  sources_found    INTEGER      ← retrieved document count         ║
+║  confidence       FLOAT        ← grounding confidence 0.0–1.0     ║
+║  response_time_ms INTEGER      ← total pipeline duration ms       ║
+║  created_at       TIMESTAMPTZ  DEFAULT now()                      ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  FUNCTION: hybrid_search(...)   [PostgreSQL RPC]                  ║
+╠═══════════════════════════════════════════════════════════════════╣
+║  Parameters:                                                      ║
+║    query_text          TEXT         ← for BM25 full-text          ║
+║    query_embedding     vector(1024) ← for cosine similarity       ║
+║    source_types        TEXT[]       ← filter, NULL = all          ║
+║    lang                TEXT         ← filter, NULL = all          ║
+║    match_count         INT          ← top-k                       ║
+║    similarity_threshold FLOAT       ← default 0.25                ║
+║                                                                   ║
+║  Score formula:                                                   ║
+║    score = (1 - (embedding <=> query_embedding)) × 0.70           ║
+║          + ts_rank(to_tsvector(content), query) × 0.30            ║
+║                                                                   ║
+║  Returns rows WHERE score >= similarity_threshold                 ║
+║  ORDER BY score DESC LIMIT match_count                            ║
+╚═══════════════════════════════════════════════════════════════════╝
+```
+
+**Why IVFFlat over exact search:**
+Exact cosine search over 44,193 vectors takes ~300ms. IVFFlat (lists=100, probes=10) scans ~10% of clusters and returns in ~30ms with 95%+ recall. At 500K+ documents (Phase 4), switch to HNSW for better recall at scale.
+
+---
+
+### 3.5 — SSE Event Timeline
+
+Each `POST /api/ask` produces this exact sequence of events on the stream:
+
+```
+ Time →  0ms        200ms       500ms      600ms      700ms      2–8s         ~8s
+          │           │           │          │          │          │            │
+          ▼           ▼           ▼          ▼          ▼          ▼            ▼
+
+pipeline  ●active─────●done
+step 1    [Query Rewrite · Gemini AI]
+
+pipeline              ●active────────────────●done
+step 2                [Vector Embed · Jina AI × 2 averaged]
+
+pipeline                                     ●active───●done
+step 3                                       [Hybrid Search · Supabase RPC]
+
+pipeline                                                ●active───●done
+step 4                                                  [RAG Assembly · Gate 1]
+
+sources                                                            ●──────────── (1 event)
+event                                                              [doc1..doc5 full text]
+
+pipeline                                                           ●active──────────────●done
+step 5                                                             [AI Generation · Gemini]
+
+tokens                                                             ●tok●tok●tok●tok●tok●tok●
+
+disclaimer                                                                                ◇
+                                                                              (if fatwa detected)
+
+done                                                                                      ●
+event                                                                          { confidence: 0.76 }
+
+[DONE]                                                                                    ■
+                                                                                  stream closed
+```
+
+**Key invariants:**
+- `sources` event always arrives **before** any `token` events — UI can show cited sources while the answer streams
+- `pipeline` step N `done` always arrives before step N+1 `active`
+- `disclaimer` only appears when `detectFatwas()` returns `true`
+- `[DONE]` terminates the stream — client should close the connection after this
+
+---
+
+### 3.6 — Code Module Map
+
+```
+app/
+├── page.tsx              ← UI: HeroSearch, SourceCard, PipelineViz, stats strip
+├── globals.css           ← dark theme CSS variables + keyframe animations
+└── api/
+    ├── ask/route.ts      ← SSE streaming RAG endpoint (the core)
+    ├── search/route.ts   ← paginated semantic search, no LLM
+    ├── sources/route.ts  ← source catalog, cached 1h at Vercel edge
+    └── health/route.ts   ← liveness probe
+
+lib/
+├── rag-chain.ts          ← rewriteQuery(), formatContext(), streamAnswer()
+│                            PIPELINE_STEPS constant
+├── vectorstore.ts        ← hybridSearch() — calls Supabase hybrid_search RPC
+├── embeddings.ts         ← getEmbeddings() lazy singleton → Jina AI v3
+├── supabase.ts           ← getSupabaseAdmin() lazy singleton → service_role client
+├── guardrails.ts         ← checkSources(), detectFatwas(), groundingScore(),
+│                            computeConfidence(), SCHOLAR_REFERRAL
+├── detect-source.ts      ← detectSourceTypes() — infers quran/hadith/tafsir
+│                            from query keywords when no filter is set
+└── types.ts              ← AskRequest, SearchRequest, SSEEvent, SourceType
+
+scripts/  (local dev only — never deployed)
+├── ingest.ts             ← orchestrator: parse args, call fetchers, embed, upload
+├── fetch-quran.ts        ← QuranCDN API → ParsedDocument[]
+├── fetch-hadith.ts       ← fawazahmed0 CDN (7 books) → ParsedDocument[]
+└── fetch-tafsir.ts       ← IslamicStudies.info API → ParsedDocument[]
+
+middleware.ts             ← Vercel edge: IP rate limiting, CORS
+
+supabase/
+├── schema.sql            ← CREATE TABLE documents, query_logs, indexes,
+│                            hybrid_search() RPC
+└── rls.sql               ← Row Level Security policies
+
+Call graph for POST /api/ask:
+  route.ts
+    → rewriteQuery()         [rag-chain.ts → Gemini API]
+    → getEmbeddings()        [embeddings.ts → Jina AI API]
+    → hybridSearch()         [vectorstore.ts → Supabase RPC]
+    → checkSources()         [guardrails.ts]
+    → formatContext()        [rag-chain.ts]
+    → streamAnswer()         [rag-chain.ts → Gemini API stream]
+    → detectFatwas()         [guardrails.ts]
+    → groundingScore()       [guardrails.ts]
+    → computeConfidence()    [guardrails.ts]
+    → getSupabaseAdmin()     [supabase.ts → query_logs insert]
+```
+
+---
+
+### 3.7 — Security Boundary
+
+```
+  PUBLIC (safe to expose in client code / browser)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  NEXT_PUBLIC_SUPABASE_URL         project URL               │
+  │  NEXT_PUBLIC_SUPABASE_ANON_KEY    read-only, RLS enforced   │
+  └─────────────────────────────────────────────────────────────┘
+
+  SECRET (server-only — never in client bundles)
+  ┌─────────────────────────────────────────────────────────────┐
+  │  SUPABASE_SERVICE_ROLE_KEY   bypasses RLS — DB root equiv.  │
+  │  GOOGLE_API_KEY              Gemini + query rewrite access  │
+  │  JINA_API_KEY                embedding generation access    │
+  └─────────────────────────────────────────────────────────────┘
+  Only accessed in:  lib/supabase.ts  lib/embeddings.ts
+                     lib/rag-chain.ts  (all server-side only)
+
+  ENFORCEMENT
+  ├─ Next.js: NEXT_PUBLIC_ prefix = bundled into client JS
+  │           all other env vars = server only, never in bundle
+  ├─ Supabase RLS: anon key can only SELECT, no INSERT/UPDATE/DELETE
+  ├─ service_role key only used in lib/supabase.ts server module
+  └─ API routes: runtime = 'nodejs' (not edge) — secrets stay server-side
 ```
 
 ---
@@ -428,7 +746,7 @@ data: [DONE]                      ← stream terminator
     id: "uuid",
     metadata: { source_type, surah_number, verse_number, book, ... },
     similarity: 0.87,
-    excerpt: "First 200 chars..."
+    excerpt: "Full document content (complete stored text)"
 }]}
 
 // Token — one per generation chunk
